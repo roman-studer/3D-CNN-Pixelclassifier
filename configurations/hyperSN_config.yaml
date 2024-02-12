@@ -1,0 +1,15 @@
+paths:
+  train:
+    path_input: Z:\biocycle\data\processed\pixelclassifier\px_compost
+  test: # bcd_val dataset
+    path_input: Z:\biocycle\data\processed\bcd_val\data
+
+hyperSN_dataloader:
+  batch_size: 1
+  window_size: 64 # size of patches that will be extracted from the images
+  stride: 32 # distance between patch center in px
+
+hyperSN:
+  in_channels: 15
+  patch_size: 64
+  class_nums: 1
