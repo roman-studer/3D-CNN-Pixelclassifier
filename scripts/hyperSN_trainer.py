@@ -1,5 +1,4 @@
 import pytorch_lightning as pl
-import lightning as lightning
 from pytorch_lightning.loggers import WandbLogger
 from dataloader import HyperspectralDataModule
 from hyperSN_model import HyperSN
@@ -39,5 +38,3 @@ if __name__ == "__main__":
 
     # Close the logger
     wandb_logger.finalize("success")
-
-# %%

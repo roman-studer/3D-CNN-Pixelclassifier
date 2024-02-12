@@ -55,9 +55,7 @@ class HyperSN(LightningModule):
         x, mask = batch
         x = x.float()
 
-        y = mask[
-            :, self.patch_size // 2, self.patch_size // 2
-        ].long()  # Convert to Long
+        y = (mask[:, self.patch_size // 2, self.patch_size // 2] / 255).round().long()
         y = torch.nn.functional.one_hot(y, num_classes=self.class_nums).float()
 
         x.unsqueeze_(1)
@@ -100,6 +98,3 @@ class HyperSN(LightningModule):
             "lr_scheduler": scheduler,
             "monitor": "val_loss",
         }
-
-
-model = HyperSN(in_channels=15, patch_size=128, class_nums=2)
