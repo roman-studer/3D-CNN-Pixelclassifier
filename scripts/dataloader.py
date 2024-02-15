@@ -28,6 +28,9 @@ class HyperspectralDataset(Dataset):
         self.window_indices = self.prepare_window_indices()
         self.gradient_mask = self.get_gradient_mask()
 
+        self.patches_loaded = 0
+        self.total_patches = len(self.window_indices)
+
     def prepare_window_indices(self):
         window_indices = []
         for cube_index, cube_file in enumerate(self.cube_files):
@@ -45,6 +48,7 @@ class HyperspectralDataset(Dataset):
 
     def load_cube(self, cube_index):
         if cube_index != self.current_cube_index:
+            print(f"Loading cube {cube_index}")
             cube_path = os.path.join(self.cube_dir, self.cube_files[cube_index])
 
             if self.mode == "train":
@@ -160,7 +164,14 @@ class HyperspectralDataset(Dataset):
 
     def __getitem__(self, idx):
         cube_index, i, j = self.window_indices[idx]
-        self.load_cube(cube_index)
+
+        if self.current_cube is None:
+            self.load_cube(cube_index)
+
+        if self.patches_loaded >= self.total_patches:
+            self.load_cube(cube_index)
+            self.patches_loaded = 0
+
         window = self.current_cube[
             i : i + self.window_size, j : j + self.window_size, :
         ].astype(np.float32)
@@ -170,26 +181,51 @@ class HyperspectralDataset(Dataset):
         ]
 
         window = self.apply_gradient_mask(window)
+
+        self.patches_loaded += 1
+
         return window, window_mask
 
 
 class HyperspectralDataModule(LightningDataModule):
-    def __init__(self, path_train, path_test, window_size, stride, batch_size):
+    def __init__(
+        self, path_train, path_test, window_size, stride_train, stride_test, batch_size
+    ):
         super().__init__()
         self.path_train = path_train
         self.path_test = path_test
         self.window_size = window_size
-        self.stride = stride
+        self.stride_train = stride_train
+        self.stride_test = stride_test
         self.batch_size = batch_size
 
     def train_dataloader(self):
         train_dataset = HyperspectralDataset(
-            self.path_train, self.window_size, self.stride, "train"
+            self.path_train, self.window_size, self.stride_train, "train"
         )
-        return DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+        return DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=os.cpu_count(),
+            persistent_workers=True,
+            pin_memory=True,
+            drop_last=True,
+        )
 
     def test_dataloader(self):
         test_dataset = HyperspectralDataset(
-            self.path_test, self.window_size, self.stride, "test"
+            self.path_test, self.window_size, self.stride_test, "test"
         )
-        return DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
+        return DataLoader(
+            test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=os.cpu_count(),
+            persistent_workers=True,
+            pin_memory=True,
+            drop_last=True,
+        )
+
+    def val_dataloader(self):
+        return self.test_dataloader()

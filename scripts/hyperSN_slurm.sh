@@ -18,7 +18,6 @@ SINGULARITYENV_LC_ALL=C.UTF-8 \
 SINGULARITYENV_LANG=C.UTF-8 \
 SINGULARITYENV_WANDB_API_KEY=$WANDB_API_KEY \
 singularity exec -B /mnt/nas05/data01/biocycle/:/workspace \
---nv /mnt/nas05/data01/biocycle/containers/lightning.sif \
+--nv /mnt/nas05/data01/biocycle/containers/lightning \
 bash -c "python3 /workspace/3D-CNN-Pixelclassifier/scripts/hyperSN_trainer.py"
 echo "Training finished"
-

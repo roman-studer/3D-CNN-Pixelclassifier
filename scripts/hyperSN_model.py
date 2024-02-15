@@ -1,6 +1,12 @@
+import os
+
+import numpy as np
+import wandb
 import torch
 import torch.nn as nn
 from pytorch_lightning import LightningModule
+
+from dataloader import HyperspectralDataset
 
 
 class HyperSN(LightningModule):
@@ -9,6 +15,7 @@ class HyperSN(LightningModule):
 
     def __init__(self, in_channels, patch_size, class_nums):
         super().__init__()
+        self.save_hyperparameters()
         self.in_channels = in_channels
         self.patch_size = patch_size
         self.class_nums = class_nums
@@ -54,11 +61,61 @@ class HyperSN(LightningModule):
     def training_step(self, batch, batch_idx):
         x, mask = batch
         x = x.float()
+        x.unsqueeze_(1)
 
         y = (mask[:, self.patch_size // 2, self.patch_size // 2] / 255).round().long()
         y = torch.nn.functional.one_hot(y, num_classes=self.class_nums).float()
 
-        x.unsqueeze_(1)
+        out = self.forward_pass(x)
+
+        loss = nn.CrossEntropyLoss()(out, y)
+        self.log(
+            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, mask = batch
+        x = x.float()
+        x = x.unsqueeze(1)
+
+        y = (mask[:, self.patch_size // 2, self.patch_size // 2] / 255).round().long()
+        y = torch.nn.functional.one_hot(y, num_classes=self.class_nums).float()
+
+        out = self.forward_pass(x)
+
+        loss = nn.CrossEntropyLoss()(out, y)
+        self.log(
+            "val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
+        return loss
+
+    def on_train_epoch_end(self) -> None:
+        self.log("lr", self.trainer.optimizers[0].param_groups[0]["lr"])
+
+        if self.trainer.sanity_checking:
+            self.log("train_loss", np.inf)
+            self.log("val_loss", np.inf)
+
+        if "val_loss" not in self.trainer.callback_metrics:
+            self.log("val_loss", np.inf)
+
+        val_loss = self.trainer.callback_metrics["val_loss"]
+        if val_loss is not None:
+            self.lr_scheduler.step(val_loss)
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, patience=5, verbose=True
+        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": self.lr_scheduler,
+            "monitor": "val_loss",
+        }
+
+    def forward_pass(self, x):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
@@ -68,9 +125,7 @@ class HyperSN(LightningModule):
         x = self.dense1(x)
         x = self.dense2(x)
         out = self.dense3(x)
-
-        loss = nn.CrossEntropyLoss()(out, y)
-        return loss
+        return out
 
     def get_shape_after_2d_conv(self):
         x = torch.zeros(
@@ -87,14 +142,3 @@ class HyperSN(LightningModule):
             x = self.conv2(x)
             x = self.conv3(x)
         return x.shape
-
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, patience=5, verbose=True
-        )
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": scheduler,
-            "monitor": "val_loss",
-        }

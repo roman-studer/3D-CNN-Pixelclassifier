@@ -3,7 +3,9 @@ from pytorch_lightning.loggers import WandbLogger
 from dataloader import HyperspectralDataModule
 from hyperSN_model import HyperSN
 import yaml
+import torch
 
+torch.set_float32_matmul_precision("medium")
 
 # load config from configurations folder (yaml)
 config = yaml.safe_load(open("../configurations/hyperSN_config.yaml"))
@@ -23,15 +25,23 @@ data_module = HyperspectralDataModule(
     batch_size=config_dataloader["batch_size"],
     path_train=paths["train"]["path_input"],
     path_test=paths["test"]["path_input"],
-    stride=config_dataloader["stride"],
+    stride_train=config_dataloader["stride_train"],
+    stride_test=config_dataloader["stride_test"],
     window_size=config_dataloader["window_size"],
 )
 
+
 if __name__ == "__main__":
-    wandb_logger = WandbLogger(name="3D-CNN-Pixelclassifier", project="hyperSN")
+    wandb_logger = WandbLogger(
+        name="3D-CNN-Pixelclassifier", project="hyperSN", entity="biocycle"
+    )
 
     # Initialize the trainer
-    trainer = pl.Trainer(max_epochs=10, logger=wandb_logger, accelerator="cpu")
+    trainer = pl.Trainer(
+        max_epochs=10,
+        logger=wandb_logger,
+        fast_dev_run=config["fast_dev_run"],
+    )
 
     # Train the model
     trainer.fit(model=model, datamodule=data_module)
