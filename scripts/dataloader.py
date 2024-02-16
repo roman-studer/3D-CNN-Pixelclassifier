@@ -9,17 +9,36 @@ from pytorch_lightning import LightningDataModule
 
 
 class HyperspectralDataset(Dataset):
-    def __init__(self, path_data, window_size, stride, mode):
+    def __init__(
+        self,
+        path_data,
+        window_size,
+        stride,
+        mode,
+        sample_strategy,
+        n_per_class,
+        n_per_cube,
+    ):
         self.cube_dir = path_data
         self.mask_dir = path_data
         self.window_size = window_size
         self.stride = stride
         self.mode = mode
+        self.sample_strategy = sample_strategy
+        self.n_windows_per_class = n_per_class
+        self.n_windows_per_cube = n_per_cube
         self.p = window_size // 2
         # list subfolders starting with E
         self.cube_files = [
             i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))
         ]
+
+        # catch changing behavior of glob
+        if len(self.cube_files[0]) > 6:
+            self.cube_files = [
+                i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))
+            ]
+
         self.current_cube = None
         self.current_mask = None
         self.current_cube_index = -1
@@ -29,21 +48,68 @@ class HyperspectralDataset(Dataset):
         self.gradient_mask = self.get_gradient_mask()
 
         self.patches_loaded = 0
-        self.total_patches = len(self.window_indices)
+        self.total_patches = len(self.window_indices) // len(self.cube_files)
 
     def prepare_window_indices(self):
         window_indices = []
         for cube_index, cube_file in enumerate(self.cube_files):
-            cube_path = os.path.join(cube_file, "hsi.npy")
+            cube_path = os.path.join(self.cube_dir, cube_file, "hsi.npy")
             cube = np.load(cube_path)
+
             # cube = np.transpose(cube, (1, 0, 2))
             self.image_shape = cube.shape[:2]
 
-            for i in range(cube.shape[0] // self.stride):
-                for j in range(cube.shape[1] // self.stride):
-                    window_indices.append(
-                        (cube_index, i * self.stride, j * self.stride)
+            if self.sample_strategy == "grid":
+                for i in range(cube.shape[0] // self.stride):
+                    for j in range(cube.shape[1] // self.stride):
+                        window_indices.append(
+                            (cube_index, i * self.stride, j * self.stride)
+                        )
+
+            elif self.sample_strategy == "random":
+                for _ in range(self.n_windows_per_cube):
+                    i = np.random.randint(0, cube.shape[0])
+                    j = np.random.randint(0, cube.shape[1])
+                    window_indices.append((cube_index, i, j))
+
+            elif self.sample_strategy == "uniform":
+                if os.path.exists(os.path.join(self.mask_dir, cube_file, "mask.bmp")):
+                    mask = cv2.imread(
+                        os.path.join(self.mask_dir, cube_file, "mask.bmp"),
+                        cv2.IMREAD_GRAYSCALE,
                     )
+
+                elif os.path.exists(
+                    os.path.join(self.mask_dir, cube_file, "hsi_masks\\")
+                ):
+                    mask = self.combine_obj_masks(
+                        os.path.join(self.mask_dir, cube_file)
+                    )
+
+                else:
+                    raise ValueError(
+                        f"Mask for cube {cube_file} not found at {cube_path}"
+                    )
+
+                # get classes, unique values in mask
+                classes = np.unique(mask)
+
+                # sample n random indices per class
+                for c in classes:
+                    indices = np.argwhere(mask == c)
+                    indices = indices[
+                        np.random.choice(
+                            indices.shape[0], self.n_windows_per_class, replace=True
+                        )
+                    ]
+                    for i, j in indices:
+                        window_indices.append((cube_index, i, j))
+
+            else:
+                raise ValueError(
+                    f"Sampling strategy {self.sample_strategy} not recognized or implemented"
+                )
+
         return window_indices
 
     def load_cube(self, cube_index):
@@ -52,29 +118,27 @@ class HyperspectralDataset(Dataset):
 
             if self.mode == "train":
                 mask_all = cv2.imread(
-                    os.path.join(cube_path, "mask.bmp"), cv2.IMREAD_GRAYSCALE
+                    os.path.join(self.cube_dir, cube_path, "mask.bmp"),
+                    cv2.IMREAD_GRAYSCALE,
                 )
 
             elif self.mode == "test":
-                mask_all = np.zeros(self.image_shape)
-                hsi_masks = glob(
-                    os.path.join(
-                        self.mask_dir, self.cube_files[cube_index], "hsi_masks/*bmp"
-                    )
+                mask_all = self.combine_obj_masks(
+                    os.path.join(self.mask_dir, self.cube_files[cube_index])
                 )
-                # TODO: if more classes are introduced mask needs to be int and not bool
-                for mask_file in hsi_masks:
-                    # load image with PIL
-                    mask = Image.open(mask_file)
-                    mask = np.array(mask)
-                    mask = cv2.resize(mask, (self.image_shape[1], self.image_shape[0]))
-                    mask_all = np.logical_or(mask_all, mask)
 
             else:
                 raise ValueError(f"Mode {self.mode} not recognized or implemented")
 
+            if mask_all is None:
+                raise ValueError(f"No mask found for cube {cube_index}")
+
             print(f"Loading cube {cube_index} from {cube_path}")
-            self.current_cube = np.load(os.path.join(cube_path, "hsi.npy"))
+
+            self.current_cube = np.load(
+                os.path.join(self.cube_dir, cube_path, "hsi.npy")
+            )
+
             self.pre_process_cube()
             self.current_cube = np.pad(
                 self.current_cube,
@@ -95,6 +159,21 @@ class HyperspectralDataset(Dataset):
 
         else:
             pass
+
+    def combine_obj_masks(self, mask_dir):
+        mask_files = glob(os.path.join(mask_dir, "hsi_masks", "*.bmp"))
+        if len(mask_files) == 0:
+            raise ValueError(f"No mask files found in {mask_dir}")
+
+        mask = None
+        for mask_file in mask_files:
+            mask_img = cv2.imread(mask_file, cv2.IMREAD_GRAYSCALE)
+            if mask is None:
+                mask = mask_img
+            else:
+                mask = np.logical_or(mask, mask_img)
+
+        return mask
 
     def pre_process_cube(self):
         # TODO: implement pca, random occlusion, gradient masking (if necessary)
@@ -189,7 +268,16 @@ class HyperspectralDataset(Dataset):
 
 class HyperspectralDataModule(LightningDataModule):
     def __init__(
-        self, path_train, path_test, window_size, stride_train, stride_test, batch_size
+        self,
+        path_train,
+        path_test,
+        window_size,
+        stride_train,
+        stride_test,
+        batch_size,
+        n_per_class,
+        n_per_cube,
+        sample_strategy,
     ):
         super().__init__()
         self.path_train = path_train
@@ -198,12 +286,21 @@ class HyperspectralDataModule(LightningDataModule):
         self.stride_train = stride_train
         self.stride_test = stride_test
         self.batch_size = batch_size
+        self.n_per_class = n_per_class
+        self.n_per_cube = n_per_cube
+        self.sample_strategy = sample_strategy
 
         print("dataloader: ", os.getcwd())
 
     def train_dataloader(self):
         train_dataset = HyperspectralDataset(
-            self.path_train, self.window_size, self.stride_train, "train"
+            self.path_train,
+            self.window_size,
+            self.stride_train,
+            "train",
+            self.sample_strategy,
+            self.n_per_class,
+            self.n_per_cube,
         )
         return DataLoader(
             train_dataset,
@@ -213,7 +310,13 @@ class HyperspectralDataModule(LightningDataModule):
 
     def test_dataloader(self):
         test_dataset = HyperspectralDataset(
-            self.path_test, self.window_size, self.stride_test, "test"
+            self.path_test,
+            self.window_size,
+            self.stride_test,
+            "test",
+            self.sample_strategy,
+            self.n_per_class,
+            self.n_per_cube,
         )
         return DataLoader(
             test_dataset,

@@ -11,9 +11,7 @@ print(os.getcwd())
 torch.set_float32_matmul_precision("medium")
 
 # load config from configurations folder (yaml)
-config = yaml.safe_load(
-    open("./3D-CNN-Pixelclassifier/configurations/hyperSN_config.yaml")
-)
+config = yaml.safe_load(open("../configurations/hyperSN_config.yaml"))
 
 config_hyperSN = config["hyperSN"]
 config_dataloader = config["hyperSN_dataloader"]
@@ -33,6 +31,9 @@ data_module = HyperspectralDataModule(
     stride_train=config_dataloader["stride_train"],
     stride_test=config_dataloader["stride_test"],
     window_size=config_dataloader["window_size"],
+    n_per_class=config_dataloader["n_per_class"],
+    n_per_cube=config_dataloader["n_per_cube"],
+    sample_strategy=config_dataloader["patch_sample_strategy"],
 )
 
 
