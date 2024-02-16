@@ -11,7 +11,9 @@ print(os.getcwd())
 torch.set_float32_matmul_precision("medium")
 
 # load config from configurations folder (yaml)
-config = yaml.safe_load(open("./3D-CNN-Pixelclassifier/configurations/hyperSN_config.yaml"))
+config = yaml.safe_load(
+    open("./3D-CNN-Pixelclassifier/configurations/hyperSN_config.yaml")
+)
 
 config_hyperSN = config["hyperSN"]
 config_dataloader = config["hyperSN_dataloader"]
@@ -35,15 +37,15 @@ data_module = HyperspectralDataModule(
 
 
 if __name__ == "__main__":
-    wandb_logger = WandbLogger(
-        name="3D-CNN-Pixelclassifier", project="hyperSN", entity="biocycle"
-    )
+    wandb_logger = WandbLogger(project="hyperSN", entity="biocycle")
 
     # Initialize the trainer
     trainer = pl.Trainer(
         max_epochs=10,
         logger=wandb_logger,
         fast_dev_run=config["fast_dev_run"],
+        enable_checkpointing=True,
+        default_root_dir=paths["model"],
     )
 
     # Train the model
