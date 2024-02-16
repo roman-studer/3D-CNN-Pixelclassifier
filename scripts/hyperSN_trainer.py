@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     # Initialize the trainer
     trainer = pl.Trainer(
-        max_epochs=10,
+        max_epochs=config_hyperSN["max_epochs"],
         logger=wandb_logger,
         fast_dev_run=config["fast_dev_run"],
         enable_checkpointing=True,
