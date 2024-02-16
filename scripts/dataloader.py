@@ -199,6 +199,8 @@ class HyperspectralDataModule(LightningDataModule):
         self.stride_test = stride_test
         self.batch_size = batch_size
 
+        print("dataloader: ", os.getcwd())
+
     def train_dataloader(self):
         train_dataset = HyperspectralDataset(
             self.path_train, self.window_size, self.stride_train, "train"
@@ -207,10 +209,6 @@ class HyperspectralDataModule(LightningDataModule):
             train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            num_workers=os.cpu_count(),
-            persistent_workers=True,
-            pin_memory=True,
-            drop_last=True,
         )
 
     def test_dataloader(self):
@@ -221,10 +219,6 @@ class HyperspectralDataModule(LightningDataModule):
             test_dataset,
             batch_size=self.batch_size,
             shuffle=False,
-            num_workers=os.cpu_count(),
-            persistent_workers=True,
-            pin_memory=True,
-            drop_last=True,
         )
 
     def val_dataloader(self):

@@ -11,6 +11,7 @@ cd /mnt/nas05/data01/biocycle/3D-CNN-Pixelclassifier/ || exit
 git status
 git fetch
 git pull git@github.com:roman-studer/3D-CNN-Pixelclassifier.git
+cd ..
 echo "Pull successful"
 
 echo "Starting training of hyperSN model"
