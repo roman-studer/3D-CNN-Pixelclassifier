@@ -11,12 +11,13 @@ cd /mnt/nas05/data01/biocycle/3D-CNN-Pixelclassifier/ || exit
 git status
 git fetch
 git pull git@github.com:roman-studer/3D-CNN-Pixelclassifier.git
+cd ..
 echo "Pull successful"
 
 echo "Starting training of hyperSN model"
 SINGULARITYENV_LC_ALL=C.UTF-8 \
 SINGULARITYENV_LANG=C.UTF-8 \
-SINGULARITYENV_WANDB_API_KEY=$WANDB_API_KEY \
+SINGULARITYENV_WANDB_API_KEY=e6b9a7a613d56626c6a0225fa91d2bfcfe02ef0f \
 singularity exec -B /mnt/nas05/data01/biocycle/:/workspace \
 --nv /mnt/nas05/data01/biocycle/containers/lightning \
 bash -c "python3 /workspace/3D-CNN-Pixelclassifier/scripts/hyperSN_trainer.py"
