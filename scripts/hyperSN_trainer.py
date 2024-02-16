@@ -4,11 +4,14 @@ from dataloader import HyperspectralDataModule
 from hyperSN_model import HyperSN
 import yaml
 import torch
+import os
+
+print(os.getcwd())
 
 torch.set_float32_matmul_precision("medium")
 
 # load config from configurations folder (yaml)
-config = yaml.safe_load(open("../configurations/hyperSN_config.yaml"))
+config = yaml.safe_load(open("./3D-CNN-Pixelclassifier/configurations/hyperSN_config.yaml"))
 
 config_hyperSN = config["hyperSN"]
 config_dataloader = config["hyperSN_dataloader"]

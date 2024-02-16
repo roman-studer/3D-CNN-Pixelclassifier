@@ -34,7 +34,7 @@ class HyperspectralDataset(Dataset):
     def prepare_window_indices(self):
         window_indices = []
         for cube_index, cube_file in enumerate(self.cube_files):
-            cube_path = os.path.join(self.cube_dir, cube_file, "hsi.npy")
+            cube_path = os.path.join(cube_file, "hsi.npy")
             cube = np.load(cube_path)
             # cube = np.transpose(cube, (1, 0, 2))
             self.image_shape = cube.shape[:2]
@@ -48,8 +48,7 @@ class HyperspectralDataset(Dataset):
 
     def load_cube(self, cube_index):
         if cube_index != self.current_cube_index:
-            print(f"Loading cube {cube_index}")
-            cube_path = os.path.join(self.cube_dir, self.cube_files[cube_index])
+            cube_path = self.cube_files[cube_index]
 
             if self.mode == "train":
                 mask_all = cv2.imread(
@@ -74,6 +73,7 @@ class HyperspectralDataset(Dataset):
             else:
                 raise ValueError(f"Mode {self.mode} not recognized or implemented")
 
+            print(f"Loading cube {cube_index} from {cube_path}")
             self.current_cube = np.load(os.path.join(cube_path, "hsi.npy"))
             self.pre_process_cube()
             self.current_cube = np.pad(
@@ -198,6 +198,8 @@ class HyperspectralDataModule(LightningDataModule):
         self.stride_train = stride_train
         self.stride_test = stride_test
         self.batch_size = batch_size
+
+        print("dataloader: ", os.getcwd())
 
     def train_dataloader(self):
         train_dataset = HyperspectralDataset(
