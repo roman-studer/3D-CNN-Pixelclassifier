@@ -35,11 +35,11 @@ class HyperSN(LightningModule):
         self.conv4 = nn.Sequential(
             nn.Conv2d(
                 self.x1_shape[1] * self.x1_shape[2],
-                out_channels=32,
+                out_channels=64,
                 kernel_size=(3, 3),
                 padding=(1, 1),
             ),
-            nn.BatchNorm2d(32),
+            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
         )
 
