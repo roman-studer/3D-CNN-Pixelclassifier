@@ -266,6 +266,19 @@ class HyperspectralDataset(Dataset):
             i : i + self.window_size, j : j + self.window_size
         ]
 
+        if window.shape != (self.n_pc, self.window_size, self.window_size):
+            # resize window to correct shape
+            window = cv2.resize(
+                window,
+                (self.window_size, self.window_size),
+                interpolation=cv2.INTER_CUBIC,
+            )
+            window_mask = cv2.resize(
+                window_mask,
+                (self.window_size, self.window_size),
+                interpolation=cv2.INTER_NEAREST,
+            )
+
         window = self.apply_gradient_mask(window)
 
         self.patches_loaded += 1
