@@ -278,6 +278,7 @@ class HyperspectralDataset(Dataset):
                     for s in window
                 ]
             )
+
             window_mask = cv2.resize(
                 window_mask,
                 (self.window_size, self.window_size),
