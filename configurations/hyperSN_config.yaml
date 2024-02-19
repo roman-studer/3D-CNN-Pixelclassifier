@@ -1,15 +1,25 @@
 paths:
   train:
-    path_input: Z:\biocycle\data\processed\pixelclassifier\px_compost
+    # path_input: Z:\biocycle\data\processed\pixelclassifier\px_compost
+    path_input: E:\90_data\PX_Compost\processed\
   test: # bcd_val dataset
-    path_input: Z:\biocycle\data\processed\bcd_val\data
+    path_input: E:\bcd_val_sub\data\
+  model: ./checkpoints/hyperSN/
 
 hyperSN_dataloader:
-  batch_size: 1
+  batch_size: 8
   window_size: 64 # size of patches that will be extracted from the images
-  stride: 32 # distance between patch center in px
+  stride_train: 32 # distance between patch center in px
+  stride_test: 128
+  patch_sample_strategy: uniform # random, grid or uniform (uniform is balanced)
+  n_per_class: 200 # number of patches per class and experiment, used for uniform sampling
+  n_per_cube: 200 # number of patches per cube and experiment, used for random sampling
 
 hyperSN:
   in_channels: 15
   patch_size: 64
-  class_nums: 1
+  class_nums: 2
+  max_epochs: 200
+
+fast_dev_run: True
+patience: 20

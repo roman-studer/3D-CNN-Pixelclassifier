@@ -1,12 +1,7 @@
-import os
-
 import numpy as np
-import wandb
 import torch
 import torch.nn as nn
 from pytorch_lightning import LightningModule
-
-from dataloader import HyperspectralDataset
 
 
 class HyperSN(LightningModule):
@@ -21,17 +16,17 @@ class HyperSN(LightningModule):
         self.class_nums = class_nums
 
         self.conv1 = nn.Sequential(
-            nn.Conv3d(1, out_channels=8, kernel_size=(7, 23, 23), padding=(1, 1, 1)),
+            nn.Conv3d(1, out_channels=8, kernel_size=(7, 7, 7), padding=(1, 1, 1)),
             nn.BatchNorm3d(8),
             nn.ReLU(inplace=True),
         )
         self.conv2 = nn.Sequential(
-            nn.Conv3d(8, out_channels=16, kernel_size=(5, 21, 21), padding=(1, 1, 1)),
+            nn.Conv3d(8, out_channels=16, kernel_size=(5, 5, 5), padding=(1, 1, 1)),
             nn.BatchNorm3d(16),
             nn.ReLU(inplace=True),
         )
         self.conv3 = nn.Sequential(
-            nn.Conv3d(16, out_channels=32, kernel_size=(3, 19, 19), padding=(1, 1, 1)),
+            nn.Conv3d(16, out_channels=32, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
             nn.BatchNorm3d(32),
             nn.ReLU(inplace=True),
         )
@@ -51,12 +46,12 @@ class HyperSN(LightningModule):
         self.x2_shape = self.get_shape_after_2d_conv()
 
         self.dense1 = nn.Sequential(
-            nn.Linear(self.x2_shape, 1024), nn.ReLU(inplace=True), nn.Dropout(0.4)
+            nn.Linear(self.x2_shape, 254), nn.ReLU(inplace=True), nn.Dropout(0.4)
         )
         self.dense2 = nn.Sequential(
-            nn.Linear(1024, 128), nn.ReLU(inplace=True), nn.Dropout(0.4)
+            nn.Linear(254, 64), nn.ReLU(inplace=True), nn.Dropout(0.4)
         )
-        self.dense3 = nn.Linear(128, self.class_nums)
+        self.dense3 = nn.Linear(64, self.class_nums)
 
     def training_step(self, batch, batch_idx):
         x, mask = batch

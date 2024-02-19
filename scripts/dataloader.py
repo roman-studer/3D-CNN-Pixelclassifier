@@ -16,8 +16,8 @@ class HyperspectralDataset(Dataset):
         stride,
         mode,
         sample_strategy,
-        n_per_class,
-        n_per_cube,
+        n_per_class=None,
+        n_per_cube=None,
     ):
         self.cube_dir = path_data
         self.mask_dir = path_data
@@ -290,6 +290,50 @@ class HyperspectralDataset(Dataset):
         self.patches_loaded += 1
 
         return window, window_mask
+
+    def iterate_full_cube(self):
+        """Iterates over the full cube and returns a generator of windows and masks."""
+
+        for idx in range(len(self.window_indices)):
+            cube_index, i, j = self.window_indices[idx]
+
+            if self.current_cube is None:
+                self.load_cube(cube_index)
+
+            if self.patches_loaded >= self.total_patches:
+                self.load_cube(cube_index)
+                self.patches_loaded = 0
+
+            window = self.current_cube[
+                i : i + self.window_size, j : j + self.window_size, :
+            ].astype(np.float32)
+            window = np.transpose(window, (2, 0, 1))
+            window_mask = self.current_mask[
+                i : i + self.window_size, j : j + self.window_size
+            ]
+
+            if window.shape != (self.n_pc, self.window_size, self.window_size):
+                # resize window to correct shape
+                window = np.array(
+                    [
+                        cv2.resize(
+                            s,
+                            (self.window_size, self.window_size),
+                            interpolation=cv2.INTER_CUBIC,
+                        )
+                        for s in window
+                    ]
+                )
+
+                window_mask = cv2.resize(
+                    window_mask,
+                    (self.window_size, self.window_size),
+                    interpolation=cv2.INTER_NEAREST,
+                )
+
+            window = self.apply_gradient_mask(window)
+
+            yield window, window_mask, cube_index, i, j
 
 
 class HyperspectralDataModule(LightningDataModule):
