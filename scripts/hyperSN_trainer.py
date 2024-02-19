@@ -53,6 +53,7 @@ if __name__ == "__main__":
         fast_dev_run=config["fast_dev_run"],
         enable_checkpointing=True,
         default_root_dir=paths["model"],
+        limit_train_batches=0.2,
     )
 
     # Train the model

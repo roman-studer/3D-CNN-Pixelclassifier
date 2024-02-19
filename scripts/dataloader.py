@@ -270,7 +270,7 @@ class HyperspectralDataset(Dataset):
             # resize window to correct shape
             window = cv2.resize(
                 window,
-                (self.window_size, self.window_size),
+                (self.n_pc, self.window_size, self.window_size),
                 interpolation=cv2.INTER_CUBIC,
             )
             window_mask = cv2.resize(
