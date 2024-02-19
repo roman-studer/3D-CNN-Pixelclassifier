@@ -29,20 +29,7 @@ class HyperspectralDataset(Dataset):
         self.n_windows_per_cube = n_per_cube
         self.p = window_size // 2
         # list subfolders starting with E
-        self.cube_files = [
-            i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))
-        ]
-
-        # catch changing behavior of glob
-        if "\\" in self.cube_files[0]:
-            self.cube_files = [
-                i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))
-            ]
-
-        elif "/" in self.cube_files[0]:
-            self.cube_files = [
-                i.split("/")[-1] for i in glob(os.path.join(path_data, "E*"))
-            ]
+        self.get_exp_files(path_data)
 
         self.current_cube = None
         self.current_mask = None
@@ -54,6 +41,21 @@ class HyperspectralDataset(Dataset):
 
         self.patches_loaded = 0
         self.total_patches = len(self.window_indices) // len(self.cube_files)
+
+    def get_exp_files(self, path_data):
+        self.cube_files = [
+            i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))
+        ]
+        # catch changing behavior of glob
+        if "\\" in self.cube_files[0]:
+            self.cube_files = [
+                i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))
+            ]
+
+        elif "/" in self.cube_files[0]:
+            self.cube_files = [
+                i.split("/")[-1] for i in glob(os.path.join(path_data, "E*"))
+            ]
 
     def prepare_window_indices(self):
         window_indices = []
@@ -85,7 +87,7 @@ class HyperspectralDataset(Dataset):
                     )
 
                 elif os.path.exists(
-                    os.path.join(self.mask_dir, cube_file, "hsi_masks\\")
+                    os.path.join(self.mask_dir, cube_file, "hsi_masks")
                 ):
                     mask = self.combine_obj_masks(
                         os.path.join(self.mask_dir, cube_file)
