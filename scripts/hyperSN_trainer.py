@@ -49,8 +49,6 @@ if __name__ == "__main__":
     wandb_logger = WandbLogger(project="hyperSN", entity="biocycle")
     wandb_logger.log_hyperparams(config)
 
-    # save model script
-
     # Initialize the trainer
     trainer = pl.Trainer(
         max_epochs=config_hyperSN["max_epochs"],
