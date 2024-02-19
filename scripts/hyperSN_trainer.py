@@ -1,6 +1,6 @@
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from dataloader import HyperspectralDataModule
 from hyperSN_model import HyperSN
 import yaml
