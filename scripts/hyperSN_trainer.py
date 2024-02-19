@@ -12,9 +12,12 @@ torch.set_float32_matmul_precision("medium")
 
 # load config from configurations folder (yaml)
 # TODO path to config file changes between local and server
-config = yaml.safe_load(
-    open("./3D-CNN-Pixelclassifier/configurations/hyperSN_config.yaml")
-)
+try:
+    config = yaml.safe_load(
+        open("./3D-CNN-Pixelclassifier/configurations/hyperSN_config.yaml")
+    )
+except FileNotFoundError:
+    config = yaml.safe_load(open("../configurations/hyperSN_config.yaml"))
 
 config_hyperSN = config["hyperSN"]
 config_dataloader = config["hyperSN_dataloader"]
