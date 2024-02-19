@@ -58,7 +58,9 @@ if __name__ == "__main__":
         default_root_dir=paths["model"],
         limit_train_batches=0.2,
         callbacks=[
-            EarlyStopping(monitor="val_loss_epoch", mode="min", patience=10),
+            EarlyStopping(
+                monitor="val_loss_epoch", mode="min", patience=config["patience"]
+            ),
             ModelCheckpoint(
                 monitor="val_loss_epoch",
                 mode="min",
