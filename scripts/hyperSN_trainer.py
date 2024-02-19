@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.callbacks import ModelCheckpoint
 from dataloader import HyperspectralDataModule
 from hyperSN_model import HyperSN
 import yaml
@@ -56,7 +57,16 @@ if __name__ == "__main__":
         enable_checkpointing=True,
         default_root_dir=paths["model"],
         limit_train_batches=0.2,
-        callbacks=[EarlyStopping(monitor="val_loss", mode="min", patience=10)],
+        callbacks=[
+            EarlyStopping(monitor="val_loss_epoch", mode="min", patience=10),
+            ModelCheckpoint(
+                monitor="val_loss_epoch",
+                mode="min",
+                save_top_k=1,
+                dirpath=paths["model"],
+                filename="best_model",
+            ),
+        ],
     )
 
     # Train the model
