@@ -34,9 +34,14 @@ class HyperspectralDataset(Dataset):
         ]
 
         # catch changing behavior of glob
-        if len(self.cube_files[0]) > 6:
+        if "\\" in self.cube_files[0]:
             self.cube_files = [
                 i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))
+            ]
+
+        elif "/" in self.cube_files[0]:
+            self.cube_files = [
+                i.split("/")[-1] for i in glob(os.path.join(path_data, "E*"))
             ]
 
         self.current_cube = None
