@@ -268,10 +268,15 @@ class HyperspectralDataset(Dataset):
 
         if window.shape != (self.n_pc, self.window_size, self.window_size):
             # resize window to correct shape
-            window = cv2.resize(
-                window,
-                (self.n_pc, self.window_size, self.window_size),
-                interpolation=cv2.INTER_CUBIC,
+            window = np.array(
+                [
+                    cv2.resize(
+                        s,
+                        (self.window_size, self.window_size),
+                        interpolation=cv2.INTER_CUBIC,
+                    )
+                    for s in window
+                ]
             )
             window_mask = cv2.resize(
                 window_mask,
