@@ -74,7 +74,6 @@ if __name__ == "__main__":
                 filename="best_model",
             ),
             LearningRateMonitor(logging_interval="epoch"),
-            LearningRateFinder(),
         ],
     )
 

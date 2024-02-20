@@ -8,7 +8,7 @@ class HyperSN(LightningModule):
     """Implementation of  HyperSN for Hyperspectral Cubes (3D Conv) from https://ieeexplore.ieee.org/document/8736016
     based on https://github.com/Pancakerr/HybridSN/blob/master/HybridSN.ipynb"""
 
-    def __init__(self, in_channels, patch_size, class_nums, learning_rate):
+    def __init__(self, in_channels, patch_size, class_nums, learning_rate=0.001):
         super().__init__()
         self.save_hyperparameters()
         self.in_channels = in_channels
