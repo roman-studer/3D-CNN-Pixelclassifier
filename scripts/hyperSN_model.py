@@ -8,12 +8,13 @@ class HyperSN(LightningModule):
     """Implementation of  HyperSN for Hyperspectral Cubes (3D Conv) from https://ieeexplore.ieee.org/document/8736016
     based on https://github.com/Pancakerr/HybridSN/blob/master/HybridSN.ipynb"""
 
-    def __init__(self, in_channels, patch_size, class_nums):
+    def __init__(self, in_channels, patch_size, class_nums, learning_rate):
         super().__init__()
         self.save_hyperparameters()
         self.in_channels = in_channels
         self.patch_size = patch_size
         self.class_nums = class_nums
+        self.learning_rate = learning_rate
 
         self.conv1 = nn.Sequential(
             nn.Conv3d(1, out_channels=8, kernel_size=(7, 7, 7), padding=(1, 1, 1)),
@@ -100,9 +101,9 @@ class HyperSN(LightningModule):
             self.lr_scheduler.step(val_loss)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, patience=5, verbose=True
+            optimizer, patience=10, verbose=True
         )
         return {
             "optimizer": optimizer,

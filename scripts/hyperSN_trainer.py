@@ -32,6 +32,7 @@ model = HyperSN(
     in_channels=config_hyperSN["in_channels"],
     patch_size=config_hyperSN["patch_size"],
     class_nums=config_hyperSN["class_nums"],
+    learning_rate=config_hyperSN["learning_rate"],
 )
 
 data_module = HyperspectralDataModule(
