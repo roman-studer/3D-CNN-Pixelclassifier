@@ -115,6 +115,9 @@ class HyperspectralDataset(Dataset):
                     for i, j in indices:
                         window_indices.append((cube_index, i, j))
 
+                # shuffle
+                np.random.shuffle(window_indices)
+
             else:
                 raise ValueError(
                     f"Sampling strategy {self.sample_strategy} not recognized or implemented"
