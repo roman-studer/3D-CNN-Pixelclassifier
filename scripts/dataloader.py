@@ -14,6 +14,7 @@ class HyperspectralDataset(Dataset):
         path_data,
         window_size,
         stride,
+        in_channels,
         mode,
         sample_strategy,
         n_per_class=None,
@@ -35,7 +36,7 @@ class HyperspectralDataset(Dataset):
         self.current_mask = None
         self.current_cube_index = -1
         self.image_shape = None
-        self.n_pc = 15
+        self.n_pc = in_channels
         self.window_indices = self.prepare_window_indices()
         self.gradient_mask = self.get_gradient_mask()
 
@@ -202,7 +203,7 @@ class HyperspectralDataset(Dataset):
         # TODO: check for optimal number of components
         pca = PCA(n_components=self.n_pc)
         x = pca.fit_transform(x)
-        x = x.reshape(self.current_cube.shape[0], self.current_cube.shape[1], 15)
+        x = x.reshape(self.current_cube.shape[0], self.current_cube.shape[1], self.n_pc)
 
         self.current_cube = x
 
@@ -344,6 +345,7 @@ class HyperspectralDataModule(LightningDataModule):
         window_size,
         stride_train,
         stride_test,
+        in_channels,
         batch_size,
         n_per_class,
         n_per_cube,
@@ -355,6 +357,7 @@ class HyperspectralDataModule(LightningDataModule):
         self.window_size = window_size
         self.stride_train = stride_train
         self.stride_test = stride_test
+        self.in_channels = in_channels
         self.batch_size = batch_size
         self.n_per_class = n_per_class
         self.n_per_cube = n_per_cube
@@ -367,6 +370,7 @@ class HyperspectralDataModule(LightningDataModule):
             self.path_train,
             self.window_size,
             self.stride_train,
+            self.in_channels,
             "train",
             self.sample_strategy,
             self.n_per_class,
@@ -383,6 +387,7 @@ class HyperspectralDataModule(LightningDataModule):
             self.path_test,
             self.window_size,
             self.stride_test,
+            self.in_channels,
             "test",
             self.sample_strategy,
             self.n_per_class,

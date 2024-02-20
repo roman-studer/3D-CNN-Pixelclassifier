@@ -3,3 +3,4 @@ lightning_logs/
 containers/
 configurations/
 *.pyc
+configurations/hyperSN_config.yaml

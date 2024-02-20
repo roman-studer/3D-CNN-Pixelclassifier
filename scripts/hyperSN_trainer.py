@@ -38,6 +38,7 @@ data_module = HyperspectralDataModule(
     path_test=paths["test"]["path_input"],
     stride_train=config_dataloader["stride_train"],
     stride_test=config_dataloader["stride_test"],
+    in_channels=config_hyperSN["in_channels"],
     window_size=config_dataloader["window_size"],
     n_per_class=config_dataloader["n_per_class"],
     n_per_cube=config_dataloader["n_per_cube"],
