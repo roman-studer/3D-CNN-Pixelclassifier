@@ -54,7 +54,12 @@ if __name__ == "__main__":
     wandb_logger = WandbLogger(project="hyperSN", entity="biocycle")
     wandb_logger.log_hyperparams(config)
 
-    # Initialize the trainer
+    # save hyperSN_trainer.py, hyperSN_model.py and dataloader.py script for later use
+    wandb_logger.experiment.log_artifact("hyperSN_trainer.py")
+    wandb_logger.experiment.log_artifact("dataloader.py")
+    wandb_logger.experiment.log_artifact("hyperSN_model.py")
+
+    # Initialize the trainerhange code so that checkpoints scripts configuration etc. is saved in the same individual folder for each project
     trainer = pl.Trainer(
         max_epochs=config_hyperSN["max_epochs"],
         logger=wandb_logger,
@@ -70,7 +75,7 @@ if __name__ == "__main__":
                 monitor="val_loss_epoch",
                 mode="min",
                 save_top_k=1,
-                dirpath=paths["model"],
+                dirpath=os.path.join(paths["model"], wandb_logger.experiment.name),
                 filename="best_model",
             ),
             LearningRateMonitor(logging_interval="epoch"),
@@ -79,11 +84,6 @@ if __name__ == "__main__":
 
     # Train the model
     trainer.fit(model=model, datamodule=data_module)
-
-    # save hyperSN_trainer.py, hyperSN_model.py and dataloader.py script for later use
-    wandb_logger.experiment.log_artifact("hyperSN_trainer.py")
-    wandb_logger.experiment.log_artifact("hyperSN_model.py")
-    wandb_logger.experiment.log_artifact("dataloader.py")
 
     # Close the logger
     wandb_logger.finalize("success")

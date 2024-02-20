@@ -17,17 +17,17 @@ class HyperSN(LightningModule):
         self.learning_rate = learning_rate
 
         self.conv1 = nn.Sequential(
-            nn.Conv3d(1, out_channels=8, kernel_size=(7, 7, 7), padding=(1, 1, 1)),
+            nn.Conv3d(1, out_channels=8, kernel_size=(12, 7, 7), padding=(1, 1, 1)),
             nn.BatchNorm3d(8),
             nn.ReLU(inplace=True),
         )
         self.conv2 = nn.Sequential(
-            nn.Conv3d(8, out_channels=16, kernel_size=(5, 5, 5), padding=(1, 1, 1)),
+            nn.Conv3d(8, out_channels=16, kernel_size=(8, 5, 5), padding=(1, 1, 1)),
             nn.BatchNorm3d(16),
             nn.ReLU(inplace=True),
         )
         self.conv3 = nn.Sequential(
-            nn.Conv3d(16, out_channels=32, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
+            nn.Conv3d(16, out_channels=32, kernel_size=(4, 3, 3), padding=(1, 1, 1)),
             nn.BatchNorm3d(32),
             nn.ReLU(inplace=True),
         )
