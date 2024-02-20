@@ -17,6 +17,7 @@ class HyperspectralDataset(Dataset):
         in_channels,
         mode,
         sample_strategy,
+        gradient_masking=False,
         n_per_class=None,
         n_per_cube=None,
     ):
@@ -29,6 +30,7 @@ class HyperspectralDataset(Dataset):
         self.n_windows_per_class = n_per_class
         self.n_windows_per_cube = n_per_cube
         self.p = window_size // 2
+        self.gradient_masking = gradient_masking
         # list subfolders starting with E
         self.get_exp_files(path_data)
 
@@ -286,7 +288,8 @@ class HyperspectralDataset(Dataset):
                 interpolation=cv2.INTER_NEAREST,
             )
 
-        window = self.apply_gradient_mask(window)
+        if self.gradient_masking:
+            window = self.apply_gradient_mask(window)
 
         self.patches_loaded += 1
 
@@ -345,6 +348,7 @@ class HyperspectralDataModule(LightningDataModule):
         window_size,
         stride_train,
         stride_test,
+        gradient_masking,
         in_channels,
         batch_size,
         n_per_class,
@@ -357,6 +361,7 @@ class HyperspectralDataModule(LightningDataModule):
         self.window_size = window_size
         self.stride_train = stride_train
         self.stride_test = stride_test
+        self.gradient_masking = gradient_masking
         self.in_channels = in_channels
         self.batch_size = batch_size
         self.n_per_class = n_per_class
@@ -373,6 +378,7 @@ class HyperspectralDataModule(LightningDataModule):
             self.in_channels,
             "train",
             self.sample_strategy,
+            self.gradient_masking,
             self.n_per_class,
             self.n_per_cube,
         )
@@ -390,6 +396,7 @@ class HyperspectralDataModule(LightningDataModule):
             self.in_channels,
             "test",
             self.sample_strategy,
+            self.gradient_masking,
             self.n_per_class,
             self.n_per_cube,
         )
