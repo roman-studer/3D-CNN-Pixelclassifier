@@ -55,9 +55,7 @@ if __name__ == "__main__":
     wandb_logger.log_hyperparams(config)
 
     # save hyperSN_trainer.py, hyperSN_model.py and dataloader.py script for later use
-    wandb_logger.experiment.log_artifact("hyperSN_trainer.py")
-    wandb_logger.experiment.log_artifact("dataloader.py")
-    wandb_logger.experiment.log_artifact("hyperSN_model.py")
+    # TODO save the scripts in the same folder as the model
 
     # Initialize the trainerhange code so that checkpoints scripts configuration etc. is saved in the same individual folder for each project
     trainer = pl.Trainer(
