@@ -60,7 +60,7 @@ if __name__ == "__main__":
         logger=wandb_logger,
         fast_dev_run=config["fast_dev_run"],
         enable_checkpointing=True,
-        default_root_dir=paths["model"],
+        default_root_dir=os.path.join(paths["model"], wandb_logger.experiment.name),
         limit_train_batches=0.2,
         callbacks=[
             EarlyStopping(
@@ -79,6 +79,11 @@ if __name__ == "__main__":
 
     # Train the model
     trainer.fit(model=model, datamodule=data_module)
+
+    # save hyperSN_trainer.py, hyperSN_model.py and dataloader.py script for later use
+    wandb_logger.experiment.log_artifact("hyperSN_trainer.py")
+    wandb_logger.experiment.log_artifact("hyperSN_model.py")
+    wandb_logger.experiment.log_artifact("dataloader.py")
 
     # Close the logger
     wandb_logger.finalize("success")
