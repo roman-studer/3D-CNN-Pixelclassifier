@@ -191,8 +191,8 @@ class HyperspectralDataset(Dataset):
     def pre_process_cube(self):
         # TODO: implement pca, random occlusion, gradient masking (if necessary)
         self.crop_bands()
+        # self.remove_background()
         self.snv_transform()
-        self.remove_background()
         self.apply_pca()
         pass
 
@@ -220,6 +220,7 @@ class HyperspectralDataset(Dataset):
         Note:
             - Changes in light intensity between cubes are not considered.
             - Function assumes that edge bands are removed, i.e. spectra are cropped.
+            - Function must be applied before normalization.
         """
         mean_intensity = np.mean(self.current_cube, axis=2)
         self.current_cube[mean_intensity < 600] = 0
