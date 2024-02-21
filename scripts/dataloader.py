@@ -1,12 +1,9 @@
-from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 import os
 import numpy as np
 import cv2
 from glob import glob
-from sklearn.decomposition import PCA
 from pytorch_lightning import LightningDataModule
-from sklearn.decomposition import IncrementalPCA
 import pickle
 
 
@@ -49,34 +46,19 @@ class HyperspectralDataset(Dataset):
         self.total_patches = len(self.window_indices) // len(self.cube_files)
 
         self.pca_model_path = pca_model_path
-        self.pca = self.train_incremental_pca()
+        self.pca = self.get_pca()
 
-    def train_incremental_pca(self):
+    def get_pca(self):
         path = os.path.join(self.pca_model_path, f"{self.n_pc}_pca.pkl")
         if os.path.exists(path):
             print("Loading PCA model from file:", path)
             with open(path, "rb") as f:
                 pca = pickle.load(f)
-        elif self.mode == "train":
-            print("Training PCA model")
-            pca = IncrementalPCA(n_components=self.n_pc)
-            for cube_index, cube_file in enumerate(self.cube_files):
-                cube_path = os.path.join(self.cube_dir, cube_file, "hsi.npy")
-                cube = np.load(cube_path)
 
-                cube = self.pre_process_cube(cube)
-
-                x = cube.reshape(-1, cube.shape[-1])
-                x = x.astype(float)
-                pca.partial_fit(x)
-
-            os.makedirs(os.path.dirname(self.pca_model_path), exist_ok=True)
-            with open(path, "wb") as f:
-                pickle.dump(pca, f)
-
-            print("PCA model saved")
-        else:
-            raise ValueError(f"PCA model not found or not able to create at {path}")
+        if not os.path.exists(path) and self.mode == "test":
+            raise ValueError(
+                f"PCA model not found at {path}. Current mode: {self.mode}"
+            )
         return pca
 
     def get_exp_files(self, path_data):
@@ -418,25 +400,6 @@ class HyperspectralDataModule(LightningDataModule):
 
         print("dataloader: ", os.getcwd())
 
-    def train_dataloader(self):
-        train_dataset = HyperspectralDataset(
-            self.path_train,
-            self.window_size,
-            self.stride_train,
-            self.in_channels,
-            "train",
-            self.sample_strategy,
-            self.gradient_masking,
-            self.n_per_class,
-            self.n_per_cube,
-            self.pca_model_path,
-        )
-        return DataLoader(
-            train_dataset,
-            batch_size=self.batch_size,
-            shuffle=True,
-        )
-
     def test_dataloader(self):
         test_dataset = HyperspectralDataset(
             self.path_test,
@@ -454,6 +417,25 @@ class HyperspectralDataModule(LightningDataModule):
             test_dataset,
             batch_size=self.batch_size,
             shuffle=False,
+        )
+
+    def train_dataloader(self):
+        train_dataset = HyperspectralDataset(
+            self.path_train,
+            self.window_size,
+            self.stride_train,
+            self.in_channels,
+            "train",
+            self.sample_strategy,
+            self.gradient_masking,
+            self.n_per_class,
+            self.n_per_cube,
+            self.pca_model_path,
+        )
+        return DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
         )
 
     def val_dataloader(self):

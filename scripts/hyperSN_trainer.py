@@ -3,12 +3,16 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import LearningRateMonitor
-from pytorch_lightning.callbacks import LearningRateFinder
 from dataloader import HyperspectralDataModule
 from hyperSN_model import HyperSN
 import yaml
 import torch
 import os
+import pickle
+from sklearn.decomposition import IncrementalPCA
+import numpy as np
+from glob import glob
+
 
 print(os.getcwd())
 
@@ -34,6 +38,80 @@ model = HyperSN(
     class_nums=config_hyperSN["class_nums"],
     learning_rate=config_hyperSN["learning_rate"],
 )
+
+
+def get_exp_files(path_data):
+    cube_files = [i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))]
+    # catch changing behavior of glob
+    if "\\" in cube_files[0]:
+        cube_files = [i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))]
+
+    elif "/" in cube_files[0]:
+        cube_files = [i.split("/")[-1] for i in glob(os.path.join(path_data, "E*"))]
+
+    return cube_files
+
+
+def snv_transform(cube=None):
+    """Perform Standard Normal Variate (SNV) transformation on spectra.
+    This transformation is performed on each spectrum individually. The mean of each spectrum is subtracted from the
+    spectrum and the result is divided by the standard deviation of the spectrum
+    """
+    return (cube - np.mean(cube, axis=2, keepdims=True)) / np.std(
+        cube, axis=2, keepdims=True
+    )
+
+
+def crop_bands(cube=None):
+    """Removes bands 0-8 and 210-224. Assumes cube is of shape (w, h, 224).
+
+    Note:
+        - Function assumes that edge bands are removed, i.e. spectra are cropped.
+    """
+    return cube[:, :, 8:210]
+
+
+def pre_process_cube(cube=None):
+    # TODO: implement pca, random occlusion, gradient masking (if necessary)
+    cube = crop_bands(cube)
+    # self.remove_background()
+    cube = snv_transform(cube)
+    return cube
+
+
+def train_incremental_pca(n_pc, cube_files, cube_dir, pca_model_path):
+    path = os.path.join(pca_model_path, f"{n_pc}_pca.pkl")
+    if os.path.exists(path):
+        print("Loading PCA model from file:", path)
+        with open(path, "rb") as f:
+            pca = pickle.load(f)
+    if not os.path.exists(path):
+        print("Training PCA model")
+        pca = IncrementalPCA(n_components=n_pc)
+        for cube_index, cube_file in enumerate(cube_files):
+            cube_path = os.path.join(cube_dir, cube_file, "hsi.npy")
+            cube = np.load(cube_path)
+
+            cube = pre_process_cube(cube)
+
+            x = cube.reshape(-1, cube.shape[-1])
+            x = x.astype(float)
+            pca.partial_fit(x)
+
+        os.makedirs(os.path.dirname(pca_model_path), exist_ok=True)
+        with open(path, "wb") as f:
+            pickle.dump(pca, f)
+
+        print("PCA model saved")
+
+
+train_incremental_pca(
+    config_hyperSN["in_channels"],
+    get_exp_files(paths["train"]["path_input"]),
+    paths["train"]["path_input"],
+    paths["pca_model"],
+)
+
 
 data_module = HyperspectralDataModule(
     batch_size=config_dataloader["batch_size"],
