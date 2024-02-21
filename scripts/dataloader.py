@@ -6,6 +6,8 @@ import cv2
 from glob import glob
 from sklearn.decomposition import PCA
 from pytorch_lightning import LightningDataModule
+from sklearn.decomposition import IncrementalPCA
+import pickle
 
 
 class HyperspectralDataset(Dataset):
@@ -20,6 +22,7 @@ class HyperspectralDataset(Dataset):
         gradient_masking=False,
         n_per_class=None,
         n_per_cube=None,
+        pca_model_path=None,
     ):
         self.cube_dir = path_data
         self.mask_dir = path_data
@@ -44,6 +47,35 @@ class HyperspectralDataset(Dataset):
 
         self.patches_loaded = 0
         self.total_patches = len(self.window_indices) // len(self.cube_files)
+
+        self.pca_model_path = pca_model_path
+        self.pca = self.train_incremental_pca()
+
+    def train_incremental_pca(self):
+        path = os.path.join(self.pca_model_path, f"{self.n_pc}_pca.pkl")
+        if os.path.exists(path):
+            print("Loading PCA model from file:", path)
+            with open(path, "rb") as f:
+                pca = pickle.load(f)
+        elif self.mode == "train":
+            print("Training PCA model")
+            pca = IncrementalPCA(n_components=self.n_pc)
+            for cube_index, cube_file in enumerate(self.cube_files):
+                cube_path = os.path.join(self.cube_dir, cube_file, "hsi.npy")
+                cube = np.load(cube_path)
+
+                cube = self.pre_process_cube(cube)
+
+                x = cube.reshape(-1, cube.shape[-1])
+                x = x.astype(float)
+                pca.partial_fit(x)
+
+            os.makedirs(os.path.dirname(self.pca_model_path), exist_ok=True)
+            with open(path, "wb") as f:
+                pickle.dump(pca, f)
+
+            print("PCA model saved")
+        return pca
 
     def get_exp_files(self, path_data):
         self.cube_files = [
@@ -160,6 +192,14 @@ class HyperspectralDataset(Dataset):
                 constant_values=0,
             )
 
+            self.current_cube = self.pca.transform(
+                self.current_cube.reshape(-1, self.current_cube.shape[-1])
+            ).reshape(
+                self.current_cube.shape[0],
+                self.current_cube.shape[1],
+                self.n_pc,
+            )
+
             self.current_mask = mask_all
             self.current_mask = np.pad(
                 self.current_mask,
@@ -188,30 +228,12 @@ class HyperspectralDataset(Dataset):
 
         return mask
 
-    def pre_process_cube(self):
+    def pre_process_cube(self, cube=None):
         # TODO: implement pca, random occlusion, gradient masking (if necessary)
-        self.crop_bands()
+        cube = self.crop_bands(cube)
         # self.remove_background()
-        self.snv_transform()
-        self.apply_pca()
-        pass
-
-    def apply_pca(self):
-        """Applies PCA to cube and reduces number of bands to 15.
-
-        Note:
-            - Function assumes that edge bands are removed, i.e. spectra are cropped.
-        """
-
-        x = self.current_cube.reshape(-1, self.current_cube.shape[-1])
-        x = x.astype(float)
-
-        # TODO: check for optimal number of components
-        pca = PCA(n_components=self.n_pc)
-        x = pca.fit_transform(x)
-        x = x.reshape(self.current_cube.shape[0], self.current_cube.shape[1], self.n_pc)
-
-        self.current_cube = x
+        cube = self.snv_transform(cube)
+        return cube
 
     def remove_background(self):
         """Sets spectra with mean intensity below 600 to zero on all bands. Treats overall low intensity spectra as
@@ -225,13 +247,16 @@ class HyperspectralDataset(Dataset):
         mean_intensity = np.mean(self.current_cube, axis=2)
         self.current_cube[mean_intensity < 600] = 0
 
-    def crop_bands(self):
+    def crop_bands(self, cube=None):
         """Removes bands 0-8 and 210-224. Assumes cube is of shape (w, h, 224).
 
         Note:
             - Function assumes that edge bands are removed, i.e. spectra are cropped.
         """
-        self.current_cube = self.current_cube[:, :, 8:210]
+        if cube is None:
+            self.current_cube = self.current_cube[:, :, 8:210]
+        else:
+            return cube[:, :, 8:210]
 
     def apply_gradient_mask(self, window):
         """Applies gradient mask to window as described in https://www.mdpi.com/2072-4292/15/12/3123"""
@@ -344,14 +369,19 @@ class HyperspectralDataset(Dataset):
 
             yield window, window_mask, cube_index, i, j
 
-    def snv_transform(self):
+    def snv_transform(self, cube=None):
         """Perform Standard Normal Variate (SNV) transformation on spectra.
         This transformation is performed on each spectrum individually. The mean of each spectrum is subtracted from the
         spectrum and the result is divided by the standard deviation of the spectrum
         """
-        self.current_cube = (
-            self.current_cube - np.mean(self.current_cube, axis=2, keepdims=True)
-        ) / np.std(self.current_cube, axis=2, keepdims=True)
+        if cube is None:
+            self.current_cube = (
+                self.current_cube - np.mean(self.current_cube, axis=2, keepdims=True)
+            ) / np.std(self.current_cube, axis=2, keepdims=True)
+        else:
+            return (cube - np.mean(cube, axis=2, keepdims=True)) / np.std(
+                cube, axis=2, keepdims=True
+            )
 
 
 class HyperspectralDataModule(LightningDataModule):
@@ -368,6 +398,7 @@ class HyperspectralDataModule(LightningDataModule):
         n_per_class,
         n_per_cube,
         sample_strategy,
+        pca_model_path,
     ):
         super().__init__()
         self.path_train = path_train
@@ -381,6 +412,7 @@ class HyperspectralDataModule(LightningDataModule):
         self.n_per_class = n_per_class
         self.n_per_cube = n_per_cube
         self.sample_strategy = sample_strategy
+        self.pca_model_path = pca_model_path
 
         print("dataloader: ", os.getcwd())
 
@@ -395,6 +427,7 @@ class HyperspectralDataModule(LightningDataModule):
             self.gradient_masking,
             self.n_per_class,
             self.n_per_cube,
+            self.pca_model_path,
         )
         return DataLoader(
             train_dataset,
@@ -413,6 +446,7 @@ class HyperspectralDataModule(LightningDataModule):
             self.gradient_masking,
             self.n_per_class,
             self.n_per_cube,
+            self.pca_model_path,
         )
         return DataLoader(
             test_dataset,

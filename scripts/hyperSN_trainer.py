@@ -47,6 +47,7 @@ data_module = HyperspectralDataModule(
     n_per_class=config_dataloader["n_per_class"],
     n_per_cube=config_dataloader["n_per_cube"],
     sample_strategy=config_dataloader["patch_sample_strategy"],
+    pca_model_path=paths["pca_model"],
 )
 
 
