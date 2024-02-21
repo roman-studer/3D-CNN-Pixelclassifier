@@ -75,6 +75,8 @@ class HyperspectralDataset(Dataset):
                 pickle.dump(pca, f)
 
             print("PCA model saved")
+        else:
+            raise ValueError(f"PCA model not found or not able to create at {path}")
         return pca
 
     def get_exp_files(self, path_data):
