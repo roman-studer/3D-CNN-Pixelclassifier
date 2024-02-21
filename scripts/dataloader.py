@@ -191,6 +191,7 @@ class HyperspectralDataset(Dataset):
     def pre_process_cube(self):
         # TODO: implement pca, random occlusion, gradient masking (if necessary)
         self.crop_bands()
+        self.snv_transform()
         self.remove_background()
         self.apply_pca()
         pass
@@ -341,6 +342,15 @@ class HyperspectralDataset(Dataset):
             window = self.apply_gradient_mask(window)
 
             yield window, window_mask, cube_index, i, j
+
+    def snv_transform(self):
+        """Perform Standard Normal Variate (SNV) transformation on spectra.
+        This transformation is performed on each spectrum individually. The mean of each spectrum is subtracted from the
+        spectrum and the result is divided by the standard deviation of the spectrum
+        """
+        self.current_cube = (
+            self.current_cube - np.mean(self.current_cube, axis=2, keepdims=True)
+        ) / np.std(self.current_cube, axis=2, keepdims=True)
 
 
 class HyperspectralDataModule(LightningDataModule):
