@@ -81,10 +81,6 @@ def pre_process_cube(cube=None):
 
 def train_incremental_pca(n_pc, cube_files, cube_dir, pca_model_path):
     path = os.path.join(pca_model_path, f"{n_pc}_pca.pkl")
-    if os.path.exists(path):
-        print("Loading PCA model from file:", path)
-        with open(path, "rb") as f:
-            pca = pickle.load(f)
     if not os.path.exists(path):
         print("Training PCA model")
         pca = IncrementalPCA(n_components=n_pc)

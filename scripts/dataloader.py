@@ -145,13 +145,13 @@ class HyperspectralDataset(Dataset):
         if cube_index != self.current_cube_index:
             cube_path = self.cube_files[cube_index]
 
-            if self.mode == "train":
+            if os.path.exists(os.path.join(self.cube_dir, cube_path, "mask.bmp")):
                 mask_all = cv2.imread(
                     os.path.join(self.cube_dir, cube_path, "mask.bmp"),
                     cv2.IMREAD_GRAYSCALE,
                 )
 
-            elif self.mode == "test":
+            elif os.path.exists(os.path.join(self.cube_dir, cube_path, "hsi_masks")):
                 mask_all = self.combine_obj_masks(
                     os.path.join(self.mask_dir, self.cube_files[cube_index])
                 )
