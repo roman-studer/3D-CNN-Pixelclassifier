@@ -9,6 +9,15 @@ class HyperSN(LightningModule):
     based on https://github.com/Pancakerr/HybridSN/blob/master/HybridSN.ipynb"""
 
     def __init__(self, in_channels, patch_size, class_nums, learning_rate=0.001):
+        """
+        Initialize the HyperSN model.
+
+        Args:
+            in_channels (int): The number of input channels.
+            patch_size (int): The size of the patch to be processed.
+            class_nums (int): The number of classes for classification.
+            learning_rate (float, optional): The learning rate for the optimizer. Defaults to 0.001.
+        """
         super().__init__()
         self.save_hyperparameters()
         self.in_channels = in_channels
@@ -17,17 +26,17 @@ class HyperSN(LightningModule):
         self.learning_rate = learning_rate
 
         self.conv1 = nn.Sequential(
-            nn.Conv3d(1, out_channels=12, kernel_size=(10, 7, 7), padding=(1, 1, 1)),
+            nn.Conv3d(1, out_channels=12, kernel_size=(10, 5, 5), padding=(1, 1, 1)),
             nn.BatchNorm3d(12),
             nn.ReLU(inplace=True),
         )
         self.conv2 = nn.Sequential(
-            nn.Conv3d(12, out_channels=16, kernel_size=(4, 5, 5), padding=(1, 1, 1)),
+            nn.Conv3d(12, out_channels=16, kernel_size=(4, 3, 3), padding=(1, 1, 1)),
             nn.BatchNorm3d(16),
             nn.ReLU(inplace=True),
         )
         self.conv3 = nn.Sequential(
-            nn.Conv3d(16, out_channels=32, kernel_size=(2, 3, 3), padding=(1, 1, 1)),
+            nn.Conv3d(16, out_channels=32, kernel_size=(2, 2, 2), padding=(1, 1, 1)),
             nn.BatchNorm3d(32),
             nn.ReLU(inplace=True),
         )
@@ -64,7 +73,10 @@ class HyperSN(LightningModule):
 
         out = self.forward_pass(x)
 
-        loss = nn.CrossEntropyLoss()(out, y)
+        if self.class_nums == 2:
+            loss = nn.BCEWithLogitsLoss()(out, y)
+        else:
+            loss = nn.CrossEntropyLoss()(out, y)
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
@@ -80,7 +92,10 @@ class HyperSN(LightningModule):
 
         out = self.forward_pass(x)
 
-        loss = nn.CrossEntropyLoss()(out, y)
+        if self.class_nums == 2:
+            loss = nn.BCEWithLogitsLoss()(out, y)
+        else:
+            loss = nn.CrossEntropyLoss()(out, y)
         self.log(
             "val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
