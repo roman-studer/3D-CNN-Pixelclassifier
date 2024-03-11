@@ -135,22 +135,40 @@ if __name__ == "__main__":
         exist_ok=True,
     )
 
-    shutil.copy(
-        "./hyperSN_model.py",
-        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
-    )
-    shutil.copy(
-        "./dataloader.py",
-        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
-    )
-    shutil.copy(
-        "./hyperSN_trainer.py",
-        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
-    )
-    shutil.copy(
-        "../configurations/hyperSN_config.yaml",
-        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
-    )
+    try:
+        shutil.copy(
+            "./hyperSN_model.py",
+            os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+        )
+        shutil.copy(
+            "./dataloader.py",
+            os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+        )
+        shutil.copy(
+            "./hyperSN_trainer.py",
+            os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+        )
+        shutil.copy(
+            "../configurations/hyperSN_config.yaml",
+            os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+        )
+    except FileNotFoundError:
+        shutil.copy(
+            "./3D-CNN-Pixelclassifier/scripts/hyperSN_model.py",
+            os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+        )
+        shutil.copy(
+            "./3D-CNN-Pixelclassifier/scripts/dataloader.py",
+            os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+        )
+        shutil.copy(
+            "./3D-CNN-Pixelclassifier/scripts/hyperSN_trainer.py",
+            os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+        )
+        shutil.copy(
+            "./3D-CNN-Pixelclassifier/configurations/hyperSN_config.yaml",
+            os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+        )
 
     # Initialize the trainer code so that checkpoints scripts configuration etc.
     # is saved in the same individual folder for each project
