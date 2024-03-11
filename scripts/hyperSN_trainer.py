@@ -129,10 +129,31 @@ if __name__ == "__main__":
     wandb_logger = WandbLogger(project="hyperSN", entity="biocycle")
     wandb_logger.log_hyperparams(config)
 
-    # save hyperSN_trainer.py, hyperSN_model.py and dataloader.py script for later use
-    # TODO save the scripts in the same folder as the model
+    # save scripts in the same folder as the model (windows and linux)
+    os.makedirs(
+        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+        exist_ok=True,
+    )
 
-    # Initialize the trainerhange code so that checkpoints scripts configuration etc. is saved in the same individual folder for each project
+    shutil.copy(
+        "./hyperSN_model.py",
+        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+    )
+    shutil.copy(
+        "./dataloader.py",
+        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+    )
+    shutil.copy(
+        "./hyperSN_trainer.py",
+        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+    )
+    shutil.copy(
+        "../configurations/hyperSN_config.yaml",
+        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+    )
+
+    # Initialize the trainer code so that checkpoints scripts configuration etc.
+    # is saved in the same individual folder for each project
     trainer = pl.Trainer(
         max_epochs=config_hyperSN["max_epochs"],
         logger=wandb_logger,
@@ -160,28 +181,5 @@ if __name__ == "__main__":
 
     # Close the logger
     wandb_logger.finalize("success")
-
-    # save scripts in the same folder as the model (windows and linux)
-    os.makedirs(
-        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
-        exist_ok=True,
-    )
-
-    shutil.copy(
-        "./hyperSN_model.py",
-        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
-    )
-    shutil.copy(
-        "./dataloader.py",
-        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
-    )
-    shutil.copy(
-        "./hyperSN_trainer.py",
-        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
-    )
-    shutil.copy(
-        "../configurations/hyperSN_config.yaml",
-        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
-    )
 
     print("Training complete")
