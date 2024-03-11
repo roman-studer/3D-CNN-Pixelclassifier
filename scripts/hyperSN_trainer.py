@@ -12,7 +12,7 @@ import pickle
 from sklearn.decomposition import IncrementalPCA
 import numpy as np
 from glob import glob
-
+import shutil
 
 print(os.getcwd())
 
@@ -160,3 +160,28 @@ if __name__ == "__main__":
 
     # Close the logger
     wandb_logger.finalize("success")
+
+    # save scripts in the same folder as the model (windows and linux)
+    os.makedirs(
+        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+        exist_ok=True,
+    )
+
+    shutil.copy(
+        "./hyperSN_model.py",
+        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+    )
+    shutil.copy(
+        "./dataloader.py",
+        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+    )
+    shutil.copy(
+        "./hyperSN_trainer.py",
+        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+    )
+    shutil.copy(
+        "../configurations/hyperSN_config.yaml",
+        os.path.join(paths["model"], wandb_logger.experiment.name, "scripts"),
+    )
+
+    print("Training complete")
