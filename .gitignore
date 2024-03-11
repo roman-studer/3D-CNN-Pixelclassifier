@@ -6,3 +6,4 @@ configurations/
 configurations/hyperSN_config.yaml
 *.pkl
 checkpoints/
+models/
