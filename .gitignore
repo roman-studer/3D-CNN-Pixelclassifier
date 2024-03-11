@@ -5,3 +5,4 @@ configurations/
 *.pyc
 configurations/hyperSN_config.yaml
 *.pkl
+checkpoints/
