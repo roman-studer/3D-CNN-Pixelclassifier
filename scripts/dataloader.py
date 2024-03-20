@@ -185,7 +185,7 @@ class HyperspectralDataset(Dataset):
             if mask_all is None:
                 raise ValueError(f"No mask found for cube {cube_index}")
 
-            print(f"Loading cube {cube_index} from {cube_path}")
+            # print(f"Loading cube {cube_index} from {cube_path}")
 
             self.current_cube = np.load(
                 os.path.join(self.cube_dir, cube_path, "hsi.npy")
@@ -272,18 +272,20 @@ class HyperspectralDataset(Dataset):
         return mask
 
     def __len__(self):
-        return len(self.window_indices)
+        return sum([len(v) for v in self.window_indices.values()])
 
     def __getitem__(self, idx):
         if self.current_cube is None:
-            self.current_cube_index = random.choice(range(len(self.cube_files)))
-            self.load_cube(self.current_cube_index)
+            chosen_cube_ix = random.choice(range(len(self.cube_files)))
+            self.load_cube(chosen_cube_ix)
+            self.current_cube_index = chosen_cube_ix
 
         if self.idx_counter > 200:
             self.idx_counter = 0
             # select random cube
-            self.current_cube_index = random.choice(range(len(self.cube_files)))
-            self.load_cube(self.current_cube_index)
+            chosen_cube_ix = random.choice(range(len(self.cube_files)))
+            self.load_cube(chosen_cube_ix)
+            self.current_cube_index = chosen_cube_ix
 
         i, j = random.choice(self.window_indices[self.current_cube_index])
 
