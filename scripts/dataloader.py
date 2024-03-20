@@ -1,10 +1,39 @@
 from torch.utils.data import Dataset, DataLoader
 import os
 import numpy as np
+import random
 import cv2
 from glob import glob
 from pytorch_lightning import LightningDataModule
 import pickle
+
+
+def combine_obj_masks(mask_dir):
+    mask_files = glob(os.path.join(mask_dir, "hsi_masks", "*.bmp"))
+    if len(mask_files) == 0:
+        raise ValueError(f"No mask files found in {mask_dir}")
+
+    mask = None
+    for mask_file in mask_files:
+        mask_img = cv2.imread(mask_file, cv2.IMREAD_GRAYSCALE)
+        if mask is None:
+            mask = mask_img
+        else:
+            mask = np.logical_or(mask, mask_img)
+
+    return mask
+
+
+def get_exp_files(path_data):
+    cube_files = [i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))]
+    # catch changing behavior of glob
+    if "\\" in cube_files[0]:
+        cube_files = [i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))]
+
+    elif "/" in cube_files[0]:
+        cube_files = [i.split("/")[-1] for i in glob(os.path.join(path_data, "E*"))]
+
+    return cube_files
 
 
 class HyperspectralDataset(Dataset):
@@ -21,8 +50,10 @@ class HyperspectralDataset(Dataset):
         n_per_cube=None,
         pca_model_path=None,
     ):
+        super().__init__()
         self.cube_dir = path_data
         self.mask_dir = path_data
+        self.cube_files = get_exp_files(path_data)
         self.window_size = window_size
         self.stride = stride
         self.mode = mode
@@ -32,7 +63,6 @@ class HyperspectralDataset(Dataset):
         self.p = window_size // 2
         self.gradient_masking = gradient_masking
         # list subfolders starting with E
-        self.get_exp_files(path_data)
 
         self.current_cube = None
         self.current_mask = None
@@ -47,6 +77,7 @@ class HyperspectralDataset(Dataset):
 
         self.pca_model_path = pca_model_path
         self.pca = self.get_pca()
+        self.idx_counter = 0
 
     def get_pca(self):
         path = os.path.join(self.pca_model_path, f"{self.n_pc}_pca.pkl")
@@ -60,21 +91,6 @@ class HyperspectralDataset(Dataset):
                 f"PCA model not found at {path}. Current mode: {self.mode}"
             )
         return pca
-
-    def get_exp_files(self, path_data):
-        self.cube_files = [
-            i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))
-        ]
-        # catch changing behavior of glob
-        if "\\" in self.cube_files[0]:
-            self.cube_files = [
-                i.split("\\")[-1] for i in glob(os.path.join(path_data, "E*"))
-            ]
-
-        elif "/" in self.cube_files[0]:
-            self.cube_files = [
-                i.split("/")[-1] for i in glob(os.path.join(path_data, "E*"))
-            ]
 
     def prepare_window_indices(self):
         window_indices = []
@@ -99,6 +115,7 @@ class HyperspectralDataset(Dataset):
                     window_indices.append((cube_index, i, j))
 
             elif self.sample_strategy == "uniform":
+                current_cube_window_indices = []
                 if os.path.exists(os.path.join(self.mask_dir, cube_file, "mask.bmp")):
                     mask = cv2.imread(
                         os.path.join(self.mask_dir, cube_file, "mask.bmp"),
@@ -108,9 +125,7 @@ class HyperspectralDataset(Dataset):
                 elif os.path.exists(
                     os.path.join(self.mask_dir, cube_file, "hsi_masks")
                 ):
-                    mask = self.combine_obj_masks(
-                        os.path.join(self.mask_dir, cube_file)
-                    )
+                    mask = combine_obj_masks(os.path.join(self.mask_dir, cube_file))
 
                 else:
                     raise ValueError(
@@ -129,20 +144,28 @@ class HyperspectralDataset(Dataset):
                         )
                     ]
                     for i, j in indices:
-                        window_indices.append((cube_index, i, j))
+                        current_cube_window_indices.append((cube_index, i, j))
 
-                # shuffle
-                np.random.shuffle(window_indices)
+                # shuffle list[tuple] of window_indices
+                random.shuffle(current_cube_window_indices)
+                window_indices.extend(current_cube_window_indices)
 
             else:
                 raise ValueError(
                     f"Sampling strategy {self.sample_strategy} not recognized or implemented"
                 )
 
-        return window_indices
+        # window indices of type list[tuple] of (cube_index, i, j) to dict with cube_index as key and list of (i, j) as value
+        window_indices_dict = {
+            cube_index: [] for cube_index in range(len(self.cube_files))
+        }
+        for cube_index, i, j in window_indices:
+            window_indices_dict[cube_index].append((i, j))
+
+        return window_indices_dict
 
     def load_cube(self, cube_index):
-        if cube_index != self.current_cube_index:
+        if cube_index != self.current_cube_index or self.current_cube is None:
             cube_path = self.cube_files[cube_index]
 
             if os.path.exists(os.path.join(self.cube_dir, cube_path, "mask.bmp")):
@@ -152,7 +175,7 @@ class HyperspectralDataset(Dataset):
                 )
 
             elif os.path.exists(os.path.join(self.cube_dir, cube_path, "hsi_masks")):
-                mask_all = self.combine_obj_masks(
+                mask_all = combine_obj_masks(
                     os.path.join(self.mask_dir, self.cube_files[cube_index])
                 )
 
@@ -194,23 +217,9 @@ class HyperspectralDataset(Dataset):
             self.current_mask = self.current_mask.astype(int)
             self.current_cube_index = cube_index
 
+            assert self.current_cube.shape[:2] == self.current_mask.shape
         else:
             pass
-
-    def combine_obj_masks(self, mask_dir):
-        mask_files = glob(os.path.join(mask_dir, "hsi_masks", "*.bmp"))
-        if len(mask_files) == 0:
-            raise ValueError(f"No mask files found in {mask_dir}")
-
-        mask = None
-        for mask_file in mask_files:
-            mask_img = cv2.imread(mask_file, cv2.IMREAD_GRAYSCALE)
-            if mask is None:
-                mask = mask_img
-            else:
-                mask = np.logical_or(mask, mask_img)
-
-        return mask
 
     def pre_process_cube(self, cube=None):
         # TODO: implement pca, random occlusion, gradient masking (if necessary)
@@ -266,14 +275,17 @@ class HyperspectralDataset(Dataset):
         return len(self.window_indices)
 
     def __getitem__(self, idx):
-        cube_index, i, j = self.window_indices[idx]
-
         if self.current_cube is None:
-            self.load_cube(cube_index)
+            self.current_cube_index = random.choice(range(len(self.cube_files)))
+            self.load_cube(self.current_cube_index)
 
-        if self.patches_loaded >= self.total_patches:
-            self.load_cube(cube_index)
-            self.patches_loaded = 0
+        if self.idx_counter > 200:
+            self.idx_counter = 0
+            # select random cube
+            self.current_cube_index = random.choice(range(len(self.cube_files)))
+            self.load_cube(self.current_cube_index)
+
+        i, j = random.choice(self.window_indices[self.current_cube_index])
 
         window = self.current_cube[
             i : i + self.window_size, j : j + self.window_size, :
@@ -306,6 +318,7 @@ class HyperspectralDataset(Dataset):
             window = self.apply_gradient_mask(window)
 
         self.patches_loaded += 1
+        self.idx_counter += 1
 
         return window, window_mask
 
