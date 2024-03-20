@@ -178,7 +178,6 @@ if __name__ == "__main__":
         fast_dev_run=config["fast_dev_run"],
         enable_checkpointing=True,
         default_root_dir=os.path.join(paths["model"], wandb_logger.experiment.name),
-        limit_train_batches=0.2,
         callbacks=[
             EarlyStopping(
                 monitor="val_loss_epoch", mode="min", patience=config["patience"]
