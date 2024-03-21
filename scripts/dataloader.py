@@ -324,19 +324,11 @@ class HyperspectralDataset(Dataset):
 
         return window, window_mask
 
-    def iterate_full_cube(self):
+    def iterate_full_cube(self, cube_index=None):
         """Iterates over the full cube and returns a generator of windows and masks."""
+        self.load_cube(cube_index)
 
-        for idx in range(len(self.window_indices)):
-            cube_index, i, j = self.window_indices[idx]
-
-            if self.current_cube is None:
-                self.load_cube(cube_index)
-
-            if self.patches_loaded >= self.total_patches:
-                self.load_cube(cube_index)
-                self.patches_loaded = 0
-
+        for i, j in self.window_indices[self.current_cube_index]:
             window = self.current_cube[
                 i : i + self.window_size, j : j + self.window_size, :
             ].astype(np.float32)
@@ -366,7 +358,7 @@ class HyperspectralDataset(Dataset):
 
             window = self.apply_gradient_mask(window)
 
-            yield window, window_mask, cube_index, i, j
+            yield window, window_mask, self.current_cube_index, i, j
 
     def snv_transform(self, cube=None):
         """Perform Standard Normal Variate (SNV) transformation on spectra.
