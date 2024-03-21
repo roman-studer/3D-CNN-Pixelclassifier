@@ -188,24 +188,26 @@ class HyperspectralDataset(Dataset):
             # print(f"Loading cube {cube_index} from {cube_path}")
 
             self.current_cube = np.load(
-                os.path.join(self.cube_dir, cube_path, "hsi.npy")
+                os.path.join(
+                    self.cube_dir.replace(self.mode, f"{self.mode}_pca_{self.n_pc}"),
+                    cube_path,
+                    "hsi.npy",
+                )
             )
 
-            self.pre_process_cube()
             self.current_cube = np.pad(
                 self.current_cube,
                 ((self.p, self.p), (self.p, self.p), (0, 0)),
-                mode="constant",
-                constant_values=0,
+                mode="reflect",
             )
 
-            self.current_cube = self.pca.transform(
+            """self.current_cube = self.pca.transform(
                 self.current_cube.reshape(-1, self.current_cube.shape[-1])
             ).reshape(
                 self.current_cube.shape[0],
                 self.current_cube.shape[1],
                 self.n_pc,
-            )
+            )"""
 
             self.current_mask = mask_all
             self.current_mask = np.pad(
@@ -220,13 +222,6 @@ class HyperspectralDataset(Dataset):
             assert self.current_cube.shape[:2] == self.current_mask.shape
         else:
             pass
-
-    def pre_process_cube(self, cube=None):
-        # TODO: implement pca, random occlusion, gradient masking (if necessary)
-        cube = self.crop_bands(cube)
-        # self.remove_background()
-        cube = self.snv_transform(cube)
-        return cube
 
     def remove_background(self):
         """Sets spectra with mean intensity below 600 to zero on all bands. Treats overall low intensity spectra as
@@ -390,6 +385,7 @@ class HyperspectralDataModule(LightningDataModule):
         n_per_cube,
         sample_strategy,
         pca_model_path,
+        num_workers,
     ):
         super().__init__()
         self.path_train = path_train
@@ -404,6 +400,7 @@ class HyperspectralDataModule(LightningDataModule):
         self.n_per_cube = n_per_cube
         self.sample_strategy = sample_strategy
         self.pca_model_path = pca_model_path
+        self.num_workers = num_workers
 
         print("dataloader: ", os.getcwd())
 
@@ -424,6 +421,7 @@ class HyperspectralDataModule(LightningDataModule):
             test_dataset,
             batch_size=self.batch_size,
             shuffle=False,
+            num_workers=self.num_workers,
         )
 
     def train_dataloader(self):
@@ -443,6 +441,7 @@ class HyperspectralDataModule(LightningDataModule):
             train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
+            num_workers=self.num_workers,
         )
 
     def val_dataloader(self):
