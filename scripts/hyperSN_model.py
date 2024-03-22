@@ -19,6 +19,7 @@ class HyperSN(LightningModule):
             learning_rate (float, optional): The learning rate for the optimizer. Defaults to 0.001.
         """
         super().__init__()
+        self.lr_scheduler = None
         self.save_hyperparameters()
         self.in_channels = in_channels
         self.patch_size = patch_size
@@ -117,9 +118,11 @@ class HyperSN(LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
-        self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, patience=25, verbose=True, factor=0.5, min_lr=1e-6
+        # self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=25, verbose=True, factor=0.5, min_lr=1e-6)
+        self.lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            optimizer, T_0=10, T_mult=2
         )
+
         return {
             "optimizer": optimizer,
             "lr_scheduler": self.lr_scheduler,

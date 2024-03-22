@@ -81,6 +81,7 @@ class HyperspectralDataset(Dataset):
         if self.pca_toggle:
             self.pca = self.get_pca()
         self.idx_counter = 0
+        self.iter_full = False
 
     def get_pca(self):
         path = os.path.join(self.pca_model_path, f"{self.n_pc}_pca.pkl")
@@ -190,13 +191,20 @@ class HyperspectralDataset(Dataset):
 
             # print(f"Loading cube {cube_index} from {cube_path}")
 
-            self.current_cube = np.load(
-                os.path.join(
-                    self.cube_dir.replace(self.mode, f"{self.mode}_pca_{self.n_pc}"),
-                    cube_path,
-                    "hsi.npy",
+            if self.iter_full is False:
+                self.current_cube = np.load(
+                    os.path.join(
+                        self.cube_dir.replace(
+                            self.mode, f"{self.mode}_pca_{self.n_pc}"
+                        ),
+                        cube_path,
+                        "hsi.npy",
+                    )
                 )
-            )
+            else:
+                self.current_cube = np.load(
+                    os.path.join(self.cube_dir, cube_path, "hsi.npy")
+                )
 
             if self.current_cube.shape[-1] != self.n_pc:
                 self.pre_process_cube()
@@ -207,7 +215,7 @@ class HyperspectralDataset(Dataset):
                 mode="reflect",
             )
 
-            if self.current_cube.shape[-1] != self.n_pc:
+            if self.current_cube.shape[-1] != self.n_pc and self.pca_toggle:
                 self.current_cube = self.pca.transform(
                     self.current_cube.reshape(-1, self.current_cube.shape[-1])
                 ).reshape(
@@ -340,6 +348,7 @@ class HyperspectralDataset(Dataset):
 
     def iterate_full_cube(self, cube_index=None):
         """Iterates over the full cube and returns a generator of windows and masks."""
+        self.iter_full = True
         self.load_cube(cube_index)
 
         for i, j in self.window_indices[self.current_cube_index]:
