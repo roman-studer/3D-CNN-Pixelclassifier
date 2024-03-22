@@ -192,6 +192,19 @@ data_module = HyperspectralDataModule(
 )
 
 
+class CustomModelCheckpoint(pl.Callback):
+    def __init__(self, checkpoint_interval, dirpath):
+        super().__init__()
+        self.checkpoint_interval = checkpoint_interval
+        self.dirpath = dirpath
+
+    def on_epoch_end(self, trainer, pl_module):
+        epoch = trainer.current_epoch
+        if (epoch + 1) % self.checkpoint_interval == 0:
+            filename = f"epoch={epoch+1}.ckpt"
+            trainer.save_checkpoint(os.path.join(self.dirpath, filename))
+
+
 if __name__ == "__main__":
     if config["online_logger"] is False:
         wandb_logger = None
@@ -248,6 +261,21 @@ if __name__ == "__main__":
         else None
     )
 
+    custom_checkpoint = CustomModelCheckpoint(
+        checkpoint_interval=20, dirpath=default_root_dir
+    )
+    early_stopping = EarlyStopping(
+        monitor="val_loss_epoch", mode="min", patience=config["patience"]
+    )
+    model_checkpoint = ModelCheckpoint(
+        monitor="val_loss_epoch",
+        mode="min",
+        save_top_k=5,
+        dirpath=default_root_dir,
+        filename="best_model",
+    )
+    learning_rate_monitor = LearningRateMonitor(logging_interval="epoch")
+
     trainer = pl.Trainer(
         max_epochs=config_hyperSN["max_epochs"],
         logger=wandb_logger,
@@ -257,17 +285,10 @@ if __name__ == "__main__":
         limit_train_batches=0.2,
         limit_val_batches=0.2,
         callbacks=[
-            EarlyStopping(
-                monitor="val_loss_epoch", mode="min", patience=config["patience"]
-            ),
-            ModelCheckpoint(
-                monitor="val_loss_epoch",
-                mode="min",
-                save_top_k=1,
-                dirpath=default_root_dir,
-                filename="best_model",
-            ),
-            LearningRateMonitor(logging_interval="epoch"),
+            early_stopping,
+            model_checkpoint,
+            learning_rate_monitor,
+            custom_checkpoint,
         ],
     )
 
