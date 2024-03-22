@@ -128,8 +128,9 @@ def preprocess_cubes(pca_model_dir, cube_dir, out_dir):
         )
         return None
 
-    with open(pca_model_dir, "rb") as f:
-        pca = pickle.load(f)
+    if config_dataloader["pca"]:
+        with open(pca_model_dir, "rb") as f:
+            pca = pickle.load(f)
 
     for dataset in ["train", "test"]:
         logging.info(f"Preprocessing {dataset} dataset")
@@ -152,22 +153,33 @@ def preprocess_cubes(pca_model_dir, cube_dir, out_dir):
 
             x = cube.reshape(-1, cube.shape[-1])
             x = x.astype(float)
-            x_pca = pca.transform(x)
-            cube_pca = x_pca.reshape(cube.shape[0], cube.shape[1], -1)
+            if config_dataloader["pca"]:
+                x_pca = pca.transform(x)
+                cube = x_pca.reshape(cube.shape[0], cube.shape[1], -1)
+            elif config_dataloader["pca"] is False:
+                # select in_channels bands from the cube (evenly spaced)
+                cube = cube[
+                    :,
+                    :,
+                    np.linspace(
+                        0, cube.shape[-1] - 1, config_hyperSN["in_channels"]
+                    ).astype(int),
+                ]
 
             out_cube_path = os.path.join(out_dataset_path, cube_file)
             os.makedirs(out_cube_path, exist_ok=True)
-            np.save(os.path.join(out_cube_path, "hsi.npy"), cube_pca)
+            np.save(os.path.join(out_cube_path, "hsi.npy"), cube)
 
     return None
 
 
-train_incremental_pca(
-    config_hyperSN["in_channels"],
-    get_exp_files(paths["train"]["path_input"]),
-    paths["train"]["path_input"],
-    paths["pca_model"],
-)
+if config_dataloader["pca"]:
+    train_incremental_pca(
+        config_hyperSN["in_channels"],
+        get_exp_files(paths["train"]["path_input"]),
+        paths["train"]["path_input"],
+        paths["pca_model"],
+    )
 
 preprocess_cubes(
     os.path.join(paths["pca_model"], f"{config_hyperSN['in_channels']}_pca.pkl"),
@@ -189,6 +201,7 @@ data_module = HyperspectralDataModule(
     sample_strategy=config_dataloader["patch_sample_strategy"],
     pca_model_path=paths["pca_model"],
     num_workers=config_dataloader["num_workers"],
+    pca=config_dataloader["pca"],
 )
 
 

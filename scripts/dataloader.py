@@ -49,6 +49,7 @@ class HyperspectralDataset(Dataset):
         n_per_class=None,
         n_per_cube=None,
         pca_model_path=None,
+        pca_toggle=False,
     ):
         super().__init__()
         self.cube_dir = path_data
@@ -76,7 +77,9 @@ class HyperspectralDataset(Dataset):
         self.total_patches = len(self.window_indices) // len(self.cube_files)
 
         self.pca_model_path = pca_model_path
-        self.pca = self.get_pca()
+        self.pca_toggle = pca_toggle
+        if self.pca_toggle:
+            self.pca = self.get_pca()
         self.idx_counter = 0
 
     def get_pca(self):
@@ -195,19 +198,31 @@ class HyperspectralDataset(Dataset):
                 )
             )
 
+            if self.current_cube.shape[-1] != self.n_pc:
+                self.pre_process_cube()
+
             self.current_cube = np.pad(
                 self.current_cube,
                 ((self.p, self.p), (self.p, self.p), (0, 0)),
                 mode="reflect",
             )
 
-            """self.current_cube = self.pca.transform(
-                self.current_cube.reshape(-1, self.current_cube.shape[-1])
-            ).reshape(
-                self.current_cube.shape[0],
-                self.current_cube.shape[1],
-                self.n_pc,
-            )"""
+            if self.current_cube.shape[-1] != self.n_pc:
+                self.current_cube = self.pca.transform(
+                    self.current_cube.reshape(-1, self.current_cube.shape[-1])
+                ).reshape(
+                    self.current_cube.shape[0],
+                    self.current_cube.shape[1],
+                    self.n_pc,
+                )
+            if self.pca_toggle is False:
+                self.current_cube = self.current_cube[
+                    :,
+                    :,
+                    np.linspace(0, self.current_cube.shape[-1] - 1, self.n_pc).astype(
+                        int
+                    ),
+                ]
 
             self.current_mask = mask_all
             self.current_mask = np.pad(
@@ -222,6 +237,10 @@ class HyperspectralDataset(Dataset):
             assert self.current_cube.shape[:2] == self.current_mask.shape
         else:
             pass
+
+    def pre_process_cube(self):
+        self.crop_bands()
+        self.snv_transform()
 
     def remove_background(self):
         """Sets spectra with mean intensity below 600 to zero on all bands. Treats overall low intensity spectra as
@@ -386,6 +405,7 @@ class HyperspectralDataModule(LightningDataModule):
         sample_strategy,
         pca_model_path,
         num_workers,
+        pca,
     ):
         super().__init__()
         self.path_train = path_train
@@ -401,6 +421,7 @@ class HyperspectralDataModule(LightningDataModule):
         self.sample_strategy = sample_strategy
         self.pca_model_path = pca_model_path
         self.num_workers = num_workers
+        self.pca = pca
 
         print("dataloader: ", os.getcwd())
 
@@ -416,6 +437,7 @@ class HyperspectralDataModule(LightningDataModule):
             self.n_per_class,
             self.n_per_cube,
             self.pca_model_path,
+            self.pca,
         )
         return DataLoader(
             test_dataset,
@@ -436,6 +458,7 @@ class HyperspectralDataModule(LightningDataModule):
             self.n_per_class,
             self.n_per_cube,
             self.pca_model_path,
+            self.pca,
         )
         return DataLoader(
             train_dataset,
