@@ -139,7 +139,7 @@ def preprocess_cubes(pca_model_dir, cube_dir, out_dir):
         )
         os.makedirs(out_dataset_path, exist_ok=True)
 
-        cube_files = [i.split("\\")[-1] for i in glob(os.path.join(dataset_path, "E*"))]
+        cube_files = get_exp_files(dataset_path)
         for cube_index, cube_file in enumerate(cube_files):
             try:
                 cube_path = os.path.join(dataset_path, cube_file, "hsi.npy")
