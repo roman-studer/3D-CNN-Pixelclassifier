@@ -141,7 +141,11 @@ def preprocess_cubes(pca_model_dir, cube_dir, out_dir):
 
         cube_files = [i.split("\\")[-1] for i in glob(os.path.join(dataset_path, "E*"))]
         for cube_index, cube_file in enumerate(cube_files):
-            cube_path = os.path.join(dataset_path, cube_file, "hsi.npy")
+            try:
+                cube_path = os.path.join(dataset_path, cube_file, "hsi.npy")
+            except FileNotFoundError:
+                cube_path = os.path.join(dataset_path, cube_index, "hsi.npy")
+
             cube = np.load(cube_path)
 
             cube = pre_process_cube(cube)
