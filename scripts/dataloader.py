@@ -248,6 +248,8 @@ class HyperspectralDataset(Dataset):
 
     def pre_process_cube(self):
         self.crop_bands()
+        if self.pca_toggle is False:
+            self.remove_background()
         self.snv_transform()
 
     def remove_background(self):
