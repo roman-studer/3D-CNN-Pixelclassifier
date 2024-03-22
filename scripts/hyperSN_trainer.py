@@ -73,10 +73,25 @@ def crop_bands(cube=None):
     return cube[:, :, 8:210]
 
 
+def remove_background(cube=None):
+    """Sets spectra with mean intensity below 600 to zero on all bands. Treats overall low intensity spectra as
+    background.
+
+    Note:
+        - Changes in light intensity between cubes are not considered.
+        - Function assumes that edge bands are removed, i.e. spectra are cropped.
+        - Function must be applied before normalization.
+    """
+    mean_intensity = np.mean(cube, axis=2)
+    cube[mean_intensity < 600] = 0
+    return cube
+
+
 def pre_process_cube(cube=None):
     # TODO: implement pca, random occlusion, gradient masking (if necessary)
     cube = crop_bands(cube)
-    # self.remove_background()
+    if config_dataloader["pca"] is False:
+        cube = remove_background(cube)
     cube = snv_transform(cube)
     return cube
 

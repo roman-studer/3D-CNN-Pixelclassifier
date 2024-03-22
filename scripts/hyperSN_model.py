@@ -118,7 +118,7 @@ class HyperSN(LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, patience=10, verbose=True, factor=0.5, min_lr=1e-6
+            optimizer, patience=25, verbose=True, factor=0.5, min_lr=1e-6
         )
         return {
             "optimizer": optimizer,
