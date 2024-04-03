@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from pytorch_lightning import LightningModule
+import torchmetrics
 
 
 class HyperSN(LightningModule):
@@ -25,6 +26,21 @@ class HyperSN(LightningModule):
         self.patch_size = patch_size
         self.class_nums = class_nums
         self.learning_rate = learning_rate
+
+        task = "binary" if class_nums == 2 else "multiclass"
+        self.train_acc = torchmetrics.Accuracy(task=task)
+        self.val_acc = torchmetrics.Accuracy(task=task)
+        self.precision = torchmetrics.Precision(
+            task=task,
+            average="macro",
+            num_classes=self.class_nums,
+        )
+        self.recall = torchmetrics.Recall(
+            task=task, average="macro", num_classes=self.class_nums
+        )
+        self.f1 = torchmetrics.F1Score(
+            task=task, average="macro", num_classes=self.class_nums
+        )
 
         self.conv1 = nn.Sequential(
             nn.Conv3d(1, out_channels=12, kernel_size=(5, 4, 4), padding=(1, 1, 1)),
@@ -81,6 +97,36 @@ class HyperSN(LightningModule):
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
+        # Calculate metrics
+
+        acc = self.train_acc(out, y)
+        precision = self.precision(out, y)
+        recall = self.recall(out, y)
+        f1 = self.f1(out, y)
+
+        # Log metrics
+        self.log(
+            "train_acc", acc, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
+        self.log(
+            "train_precision",
+            precision,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+        self.log(
+            "train_recall",
+            recall,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+        self.log(
+            "train_f1", f1, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -100,6 +146,34 @@ class HyperSN(LightningModule):
         self.log(
             "val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
+
+        # Calculate metrics
+        acc = self.val_acc(out, y)
+        precision = self.precision(out, y)
+        recall = self.recall(out, y)
+        f1 = self.f1(out, y)
+
+        # Log metrics
+        self.log(
+            "val_acc", acc, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
+        self.log(
+            "val_precision",
+            precision,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+        self.log(
+            "val_recall",
+            recall,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+        self.log("val_f1", f1, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def on_train_epoch_end(self) -> None:
