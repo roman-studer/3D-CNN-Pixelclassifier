@@ -59,8 +59,9 @@ def snv_transform(cube=None):
     This transformation is performed on each spectrum individually. The mean of each spectrum is subtracted from the
     spectrum and the result is divided by the standard deviation of the spectrum
     """
-    return (cube - np.mean(cube, axis=2, keepdims=True)) / np.std(
-        cube, axis=2, keepdims=True
+    epsilon = 1e-8  # small constant to avoid division by zero
+    return (cube - np.mean(cube, axis=2, keepdims=True)) / (
+        np.std(cube, axis=2, keepdims=True) + epsilon
     )
 
 
@@ -85,6 +86,21 @@ def remove_background(cube=None):
     mean_intensity = np.mean(cube, axis=2)
     cube[mean_intensity < 600] = 0
     return cube
+
+
+def flip_experiment(cube=None, mask=None):
+    """Flip cube and mask randomly to simulate different orientations of the cube."""
+    flipud = np.random.choice([True, False])
+    fliplr = np.random.choice([True, False])
+    cube = np.flipud(cube) if flipud else cube
+    cube = np.fliplr(cube) if fliplr else cube
+    mask = np.flipud(mask) if flipud else mask
+    mask = np.fliplr(mask) if fliplr else mask
+    return cube, mask
+
+
+def apply_jitter(cube=None):
+    """Apply color jitter to the cube."""
 
 
 def pre_process_cube(cube=None):
@@ -209,6 +225,7 @@ data_module = HyperspectralDataModule(
     stride_train=config_dataloader["stride_train"],
     stride_test=config_dataloader["stride_test"],
     gradient_masking=config_dataloader["gradient_masking"],
+    random_occlusion=config_dataloader["random_occlusion"],
     in_channels=config_hyperSN["in_channels"],
     window_size=config_dataloader["window_size"],
     n_per_class=config_dataloader["n_per_class"],

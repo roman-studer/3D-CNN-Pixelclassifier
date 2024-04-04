@@ -46,6 +46,7 @@ class HyperspectralDataset(Dataset):
         mode,
         sample_strategy,
         gradient_masking=False,
+        random_occlusion=False,
         n_per_class=None,
         n_per_cube=None,
         pca_model_path=None,
@@ -63,6 +64,7 @@ class HyperspectralDataset(Dataset):
         self.n_windows_per_cube = n_per_cube
         self.p = window_size // 2
         self.gradient_masking = gradient_masking
+        self.random_occlusion = random_occlusion
         # list subfolders starting with E
 
         self.current_cube = None
@@ -189,9 +191,10 @@ class HyperspectralDataset(Dataset):
             if mask_all is None:
                 raise ValueError(f"No mask found for cube {cube_index}")
 
+            self.current_mask = mask_all
             # print(f"Loading cube {cube_index} from {cube_path}")
 
-            if self.iter_full is False:
+            if self.iter_full is False and self.pca_toggle is True:
                 self.current_cube = np.load(
                     os.path.join(
                         self.cube_dir.replace(
@@ -201,6 +204,7 @@ class HyperspectralDataset(Dataset):
                         "hsi.npy",
                     )
                 )
+
             else:
                 self.current_cube = np.load(
                     os.path.join(self.cube_dir, cube_path, "hsi.npy")
@@ -223,6 +227,7 @@ class HyperspectralDataset(Dataset):
                     self.current_cube.shape[1],
                     self.n_pc,
                 )
+
             if self.pca_toggle is False:
                 self.current_cube = self.current_cube[
                     :,
@@ -232,7 +237,10 @@ class HyperspectralDataset(Dataset):
                     ),
                 ]
 
-            self.current_mask = mask_all
+                # apply random change in brightness
+                # np.save("../data/transformed_cubes/linspace_cube_test.npy", self.current_cube,)
+                # np.save("../data/transformed_cubes/linspace_mask_test.npy", mask_all)
+
             self.current_mask = np.pad(
                 self.current_mask,
                 ((self.p, self.p), (self.p, self.p)),
@@ -251,6 +259,8 @@ class HyperspectralDataset(Dataset):
         if self.pca_toggle is False:
             self.remove_background()
         self.snv_transform()
+        self.current_cube = self.current_cube * np.random.uniform(0.7, 1.3)
+        self.flip_cube()
 
     def remove_background(self):
         """Sets spectra with mean intensity below 600 to zero on all bands. Treats overall low intensity spectra as
@@ -343,6 +353,9 @@ class HyperspectralDataset(Dataset):
         if self.gradient_masking:
             window = self.apply_gradient_mask(window)
 
+        if self.random_occlusion:
+            window = self.apply_random_occlusion(window)
+
         self.patches_loaded += 1
         self.idx_counter += 1
 
@@ -390,14 +403,35 @@ class HyperspectralDataset(Dataset):
         This transformation is performed on each spectrum individually. The mean of each spectrum is subtracted from the
         spectrum and the result is divided by the standard deviation of the spectrum
         """
+        epsilon = 1e-8  # small constant to avoid division by zero
         if cube is None:
             self.current_cube = (
                 self.current_cube - np.mean(self.current_cube, axis=2, keepdims=True)
-            ) / np.std(self.current_cube, axis=2, keepdims=True)
+            ) / (np.std(self.current_cube, axis=2, keepdims=True) + epsilon)
         else:
-            return (cube - np.mean(cube, axis=2, keepdims=True)) / np.std(
-                cube, axis=2, keepdims=True
+            return (cube - np.mean(cube, axis=2, keepdims=True)) / (
+                np.std(cube, axis=2, keepdims=True) + epsilon
             )
+
+    def apply_random_occlusion(self, window):
+        """Apply random occlusion to window by setting random pixels to zero, except for the center pixel."""
+        center = self.window_size // 2
+        occluded_window = window.copy()
+        for i in range(self.window_size):
+            for j in range(self.window_size):
+                if (i, j) != (center, center):
+                    if random.random() < 0.1:
+                        occluded_window[:, i, j] = 0
+        return occluded_window
+
+    def flip_cube(self):
+        """Randomly flip cube along x and y axis. Also flips mask."""
+        if random.random() < 0.5:
+            self.current_cube = np.flip(self.current_cube, axis=0)
+            self.current_mask = np.flip(self.current_mask, axis=0)
+        if random.random() < 0.5:
+            self.current_cube = np.flip(self.current_cube, axis=1)
+            self.current_mask = np.flip(self.current_mask, axis=1)
 
 
 class HyperspectralDataModule(LightningDataModule):
@@ -409,6 +443,7 @@ class HyperspectralDataModule(LightningDataModule):
         stride_train,
         stride_test,
         gradient_masking,
+        random_occlusion,
         in_channels,
         batch_size,
         n_per_class,
@@ -425,6 +460,7 @@ class HyperspectralDataModule(LightningDataModule):
         self.stride_train = stride_train
         self.stride_test = stride_test
         self.gradient_masking = gradient_masking
+        self.random_occlusion = random_occlusion
         self.in_channels = in_channels
         self.batch_size = batch_size
         self.n_per_class = n_per_class
@@ -445,6 +481,7 @@ class HyperspectralDataModule(LightningDataModule):
             "test",
             self.sample_strategy,
             self.gradient_masking,
+            self.random_occlusion,
             self.n_per_class,
             self.n_per_cube,
             self.pca_model_path,
@@ -466,6 +503,7 @@ class HyperspectralDataModule(LightningDataModule):
             "train",
             self.sample_strategy,
             self.gradient_masking,
+            self.random_occlusion,
             self.n_per_class,
             self.n_per_cube,
             self.pca_model_path,
