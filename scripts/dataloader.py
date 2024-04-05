@@ -1,3 +1,4 @@
+from scipy.signal import savgol_filter
 from torch.utils.data import Dataset, DataLoader
 import os
 import numpy as np
@@ -229,6 +230,13 @@ class HyperspectralDataset(Dataset):
                 )
 
             if self.pca_toggle is False:
+                self.current_cube = np.array(
+                    [
+                        savgol_filter(s, 3, 2, mode="nearest")
+                        for s in self.current_cube.T
+                    ]
+                ).T
+
                 self.current_cube = self.current_cube[
                     :,
                     :,
@@ -277,9 +285,9 @@ class HyperspectralDataset(Dataset):
             - Function assumes that edge bands are removed, i.e. spectra are cropped.
         """
         if cube is None:
-            self.current_cube = self.current_cube[:, :, 8:210]
+            self.current_cube = self.current_cube[:, :, 40:170]
         else:
-            return cube[:, :, 8:210]
+            return cube[:, :, 40:170]
 
     def apply_gradient_mask(self, window):
         """Applies gradient mask to window as described in https://www.mdpi.com/2072-4292/15/12/3123"""

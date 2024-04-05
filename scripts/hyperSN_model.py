@@ -28,19 +28,25 @@ class HyperSN(LightningModule):
         self.learning_rate = learning_rate
 
         task = "binary" if class_nums == 2 else "multiclass"
-        self.train_acc = torchmetrics.Accuracy(task=task)
-        self.val_acc = torchmetrics.Accuracy(task=task)
-        self.precision = torchmetrics.Precision(
-            task=task,
-            average="macro",
-            num_classes=self.class_nums,
-        )
-        self.recall = torchmetrics.Recall(
-            task=task, average="macro", num_classes=self.class_nums
-        )
-        self.f1 = torchmetrics.F1Score(
-            task=task, average="macro", num_classes=self.class_nums
-        )
+        if task == "binary":
+            self.train_acc = torchmetrics.classification.BinaryAccuracy()
+            self.val_acc = torchmetrics.classification.BinaryAccuracy()
+            self.precision = torchmetrics.classification.BinaryPrecision()
+            self.recall = torchmetrics.classification.BinaryRecall()
+            self.f1 = torchmetrics.classification.BinaryF1Score()
+
+        else:
+            self.train_acc = torchmetrics.classification.MulticlassAccuracy(
+                self.class_nums
+            )
+            self.val_acc = torchmetrics.classification.MulticlassAccuracy(
+                self.class_nums
+            )
+            self.precision = torchmetrics.classification.MulticlassPrecision(
+                self.class_nums
+            )
+            self.recall = torchmetrics.classification.MulticlassRecall(self.class_nums)
+            self.f1 = torchmetrics.classification.MulticlassF1Score(self.class_nums)
 
         self.conv1 = nn.Sequential(
             nn.Conv3d(1, out_channels=12, kernel_size=(5, 4, 4), padding=(1, 1, 1)),
