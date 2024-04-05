@@ -237,10 +237,6 @@ class HyperspectralDataset(Dataset):
                     ),
                 ]
 
-                # apply random change in brightness
-                # np.save("../data/transformed_cubes/linspace_cube_test.npy", self.current_cube,)
-                # np.save("../data/transformed_cubes/linspace_mask_test.npy", mask_all)
-
             self.current_mask = np.pad(
                 self.current_mask,
                 ((self.p, self.p), (self.p, self.p)),
@@ -304,6 +300,9 @@ class HyperspectralDataset(Dataset):
         mask = np.repeat(mask, p, axis=0)
 
         return mask
+
+    def on_epoch_end(self):
+        self.window_indices = self.prepare_window_indices()
 
     def __len__(self):
         return sum([len(v) for v in self.window_indices.values()])

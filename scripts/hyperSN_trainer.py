@@ -246,8 +246,17 @@ class CustomModelCheckpoint(pl.Callback):
     def on_epoch_end(self, trainer, pl_module):
         epoch = trainer.current_epoch
         if (epoch + 1) % self.checkpoint_interval == 0:
-            filename = f"epoch={epoch+1}.ckpt"
+            filename = f"epoch={epoch + 1}.ckpt"
             trainer.save_checkpoint(os.path.join(self.dirpath, filename))
+
+
+class EpochEndCallback(pl.Callback):
+    def on_train_epoch_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
+        trainer.train_dataloader.dataset.on_epoch_end()
+        print("Epoch end callback")
+        logging.info("Epoch end callback")
 
 
 if __name__ == "__main__":
@@ -321,6 +330,8 @@ if __name__ == "__main__":
     )
     learning_rate_monitor = LearningRateMonitor(logging_interval="epoch")
 
+    epoch_end_callback = EpochEndCallback()
+
     trainer = pl.Trainer(
         max_epochs=config_hyperSN["max_epochs"],
         logger=wandb_logger,
@@ -334,6 +345,7 @@ if __name__ == "__main__":
             model_checkpoint,
             learning_rate_monitor,
             custom_checkpoint,
+            epoch_end_callback,
         ],
     )
 
