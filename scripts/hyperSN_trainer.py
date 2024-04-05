@@ -322,8 +322,8 @@ if __name__ == "__main__":
         monitor="val_loss_epoch", mode="min", patience=config["patience"]
     )
     model_checkpoint = ModelCheckpoint(
-        monitor="val_loss_epoch",
-        mode="min",
+        monitor="val_f1_epoch",
+        mode="max",
         save_top_k=5,
         dirpath=default_root_dir,
         filename="best_model",
