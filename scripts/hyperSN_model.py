@@ -196,6 +196,8 @@ class HyperSN(LightningModule):
         if val_loss is not None:
             self.lr_scheduler.step(val_loss)
 
+        # every n epochs run
+
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         # self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=25, verbose=True, factor=0.5, min_lr=1e-6)

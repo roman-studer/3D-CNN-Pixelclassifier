@@ -93,7 +93,7 @@ class HyperspectralDataset(Dataset):
             with open(path, "rb") as f:
                 pca = pickle.load(f)
 
-        if not os.path.exists(path) and self.mode == "test":
+        if not os.path.exists(path) and (self.mode == "test" or self.mode == "val"):
             raise ValueError(
                 f"PCA model not found at {path}. Current mode: {self.mode}"
             )
@@ -446,6 +446,7 @@ class HyperspectralDataModule(LightningDataModule):
         self,
         path_train,
         path_test,
+        path_val,
         window_size,
         stride_train,
         stride_test,
@@ -463,6 +464,7 @@ class HyperspectralDataModule(LightningDataModule):
         super().__init__()
         self.path_train = path_train
         self.path_test = path_test
+        self.path_val = path_val
         self.window_size = window_size
         self.stride_train = stride_train
         self.stride_test = stride_test
@@ -524,4 +526,23 @@ class HyperspectralDataModule(LightningDataModule):
         )
 
     def val_dataloader(self):
-        return self.test_dataloader()
+        train_dataset = HyperspectralDataset(
+            self.path_val,
+            self.window_size,
+            self.stride_train,
+            self.in_channels,
+            "val",
+            self.sample_strategy,
+            self.gradient_masking,
+            self.random_occlusion,
+            self.n_per_class,
+            self.n_per_cube,
+            self.pca_model_path,
+            self.pca,
+        )
+        return DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+        )

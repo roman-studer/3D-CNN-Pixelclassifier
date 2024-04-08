@@ -222,6 +222,7 @@ data_module = HyperspectralDataModule(
     batch_size=config_dataloader["batch_size"],
     path_train=paths["train"]["path_input"],
     path_test=paths["test"]["path_input"],
+    path_val=paths["val"]["path_input"],
     stride_train=config_dataloader["stride_train"],
     stride_test=config_dataloader["stride_test"],
     gradient_masking=config_dataloader["gradient_masking"],
@@ -243,11 +244,30 @@ class CustomModelCheckpoint(pl.Callback):
         self.checkpoint_interval = checkpoint_interval
         self.dirpath = dirpath
 
-    def on_epoch_end(self, trainer, pl_module):
+    def on_train_epoch_end(self, trainer, pl_module):
         epoch = trainer.current_epoch
         if (epoch + 1) % self.checkpoint_interval == 0:
             filename = f"epoch={epoch + 1}.ckpt"
             trainer.save_checkpoint(os.path.join(self.dirpath, filename))
+
+
+class ValidationCallback(pl.Callback):
+    def __init__(self, validation_interval=4):
+        self.validation_interval = validation_interval
+
+    def on_validation_end(self, trainer, pl_module):
+        print("Validation end callback")
+        logging.info("Validation end callback")
+
+    def on_train_epoch_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
+        epoch = trainer.current_epoch
+        if (epoch + 1) % self.validation_interval == 0:
+            # run validation every 4 epochs
+            trainer.validate()
+            print("Validation callback")
+            logging.info("Validation callback")
 
 
 class EpochEndCallback(pl.Callback):
@@ -331,6 +351,7 @@ if __name__ == "__main__":
     learning_rate_monitor = LearningRateMonitor(logging_interval="epoch")
 
     epoch_end_callback = EpochEndCallback()
+    val_callback = ValidationCallback(validation_interval=4)
 
     trainer = pl.Trainer(
         max_epochs=config_hyperSN["max_epochs"],
@@ -346,6 +367,7 @@ if __name__ == "__main__":
             learning_rate_monitor,
             custom_checkpoint,
             epoch_end_callback,
+            val_callback,
         ],
     )
 
