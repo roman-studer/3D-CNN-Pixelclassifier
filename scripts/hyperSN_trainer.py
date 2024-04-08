@@ -265,7 +265,7 @@ class ValidationCallback(pl.Callback):
         epoch = trainer.current_epoch
         if (epoch + 1) % self.validation_interval == 0:
             # run validation every 4 epochs
-            trainer.validate()
+            trainer.test()
             print("Validation callback")
             logging.info("Validation callback")
 

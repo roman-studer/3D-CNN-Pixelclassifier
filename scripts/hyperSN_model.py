@@ -39,6 +39,9 @@ class HyperSN(LightningModule):
             self.train_acc = torchmetrics.classification.MulticlassAccuracy(
                 self.class_nums
             )
+            self.test_acc = torchmetrics.classification.MulticlassAccuracy(
+                self.class_nums
+            )
             self.val_acc = torchmetrics.classification.MulticlassAccuracy(
                 self.class_nums
             )
@@ -180,6 +183,54 @@ class HyperSN(LightningModule):
             logger=True,
         )
         self.log("val_f1", f1, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        x, mask = batch
+        x = x.float()
+        x = x.unsqueeze(1)
+
+        y = (mask[:, self.patch_size // 2, self.patch_size // 2] / 255).round().long()
+        y = torch.nn.functional.one_hot(y, num_classes=self.class_nums).float
+
+        out = self.forward_pass(x)
+
+        if self.class_nums == 2:
+            loss = nn.BCEWithLogitsLoss()(out, y)
+        else:
+            loss = nn.CrossEntropyLoss()(out, y)
+
+        self.log(
+            "test_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
+
+        # Calculate metrics
+        acc = self.test_acc(out, y)
+        precision = self.precision(out, y)
+        recall = self.recall(out, y)
+        f1 = self.f1(out, y)
+
+        # Log metrics
+        self.log(
+            "test_acc", acc, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
+        self.log(
+            "test_precision",
+            precision,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+        self.log(
+            "test_recall",
+            recall,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+        self.log("test_f1", f1, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def on_train_epoch_end(self) -> None:
