@@ -263,7 +263,12 @@ class HyperspectralDataset(Dataset):
         if self.pca_toggle is False:
             self.remove_background()
         self.snv_transform()
-        self.current_cube = self.current_cube * np.random.uniform(0.7, 1.3)
+        if self.mode == "train":
+            self.current_cube = self.current_cube * np.random.uniform(0.7, 1.3)
+            # add gaussian noise
+            self.current_cube = self.current_cube + np.random.normal(
+                0, 0.05, self.current_cube.shape
+            )
         self.flip_cube()
 
     def remove_background(self):
