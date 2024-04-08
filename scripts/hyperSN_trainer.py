@@ -163,7 +163,7 @@ def preprocess_cubes(pca_model_dir, cube_dir, out_dir):
         with open(pca_model_dir, "rb") as f:
             pca = pickle.load(f)
 
-    for dataset in ["train", "test"]:
+    for dataset in ["train", "test", "val"]:
         logging.info(f"Preprocessing {dataset} dataset")
         dataset_path = os.path.join(cube_dir.replace("train", dataset))
         out_dataset_path = os.path.join(
